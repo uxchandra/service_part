@@ -5,8 +5,8 @@
     <div class="section-header">
         <h1>Data Posting</h1>
         <div class="ml-auto">
-            <a href="{{ route('barang-masuk.create') }}" class="btn btn-primary">
-                <i class="fa fa-plus"></i> Tambah Posting
+            <a href="{{ route('barang-masuk.create') }}" class="btn btn-primary btn-sm">
+                <i class="fa fa-plus"></i> Tambah
             </a>
         </div>
     </div>
@@ -14,8 +14,24 @@
     <div class="row">
         <div class="col-lg-12">
             <div class="card">
-                <div class="card-body">
-                    <div class="table-responsive">
+                <div class="card-body p-2">
+                    <!-- Mobile Card View (EDA50K) -->
+                    <div class="d-block d-md-none" id="mobile-view">
+                        <div class="search-box mb-3">
+                            <input type="text" id="mobile-search" class="form-control form-control-sm" placeholder="Cari tanggal...">
+                        </div>
+                        <div id="mobile-cards-container">
+                            <!-- Cards will be loaded here -->
+                        </div>
+                        <div class="text-center mt-3">
+                            <button id="load-more" class="btn btn-secondary btn-sm" style="display: none;">
+                                <i class="fa fa-sync"></i> Muat Lebih Banyak
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Desktop Table View -->
+                    <div class="table-responsive d-none d-md-block">
                         <table id="table_barang_masuk" class="display" style="font-size: 13px; width:100%;">
                             <thead>
                                 <tr>
@@ -37,6 +53,159 @@
 
 @push('styles')
 <style>
+    /* Mobile Optimizations for EDA50K (480x800) */
+    @media (max-width: 767px) {
+        body {
+            font-size: 14px;
+        }
+        
+        .section-header {
+            padding: 10px 0;
+            margin-bottom: 15px;
+        }
+        
+        .section-header h1 {
+            font-size: 18px;
+            margin-bottom: 0;
+        }
+        
+        .card {
+            margin-bottom: 10px;
+        }
+        
+        .card-body {
+            padding: 8px !important;
+        }
+
+        /* Mobile Cards Style */
+        .mobile-card {
+            background: white;
+            border: 1px solid #e3e6f0;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            cursor: pointer;
+            transition: all 0.2s;
+            min-height: 70px;
+        }
+
+        .mobile-card:active {
+            background: #f8f9fc;
+            transform: scale(0.98);
+        }
+
+        .mobile-card-date {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 6px;
+        }
+
+        .mobile-card-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mobile-card-count {
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        .mobile-card-count i {
+            color: #4e73df;
+        }
+
+        .mobile-card-btn {
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 5px;
+        }
+
+        .search-box input {
+            font-size: 14px;
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+
+        /* Loading State */
+        .loading-skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            height: 70px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    }
+
+    /* Modal Optimizations for Mobile */
+    @media (max-width: 767px) {
+        .modal-dialog {
+            margin: 5px;
+            max-width: calc(100% - 10px);
+        }
+
+        .modal-content {
+            border-radius: 8px;
+        }
+
+        .modal-header {
+            padding: 12px 15px;
+        }
+
+        .modal-title {
+            font-size: 16px;
+        }
+
+        .modal-body {
+            padding: 10px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .transaction-item {
+            font-size: 13px !important;
+            padding: 10px !important;
+            margin-bottom: 12px !important;
+        }
+
+        .transaction-header {
+            padding: 8px 10px !important;
+            margin-bottom: 10px !important;
+        }
+
+        .transaction-header h6 {
+            font-size: 14px !important;
+        }
+
+        .items-table {
+            font-size: 12px !important;
+        }
+
+        .items-table th {
+            font-size: 12px !important;
+            padding: 6px 4px !important;
+        }
+
+        .items-table td {
+            font-size: 12px !important;
+            padding: 6px 4px !important;
+        }
+
+        .badge {
+            font-size: 11px;
+            padding: 4px 6px;
+        }
+    }
+
+    /* Desktop styles */
     .transaction-item {
         background: #f8f9fc;
         border: 1px solid #e3e6f0;
@@ -91,75 +260,185 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Initialize DataTable
-    let table = $('#table_barang_masuk').DataTable({
-        processing: false,
-        serverSide: true,
-        paging: true,
-        autoWidth: false,
-        lengthMenu: [
-            [10, 25, 50, 100, -1],
-            [10, 25, 50, 100, "Show All"]
-        ],
-        pageLength: 10,
-        ajax: {
-            url: '{{ route("barang-masuk.get-data") }}',
-            type: 'GET'
-        },
-        columns: [
-            { 
-                data: null,
-                render: function(data, type, row, meta) {
-                    return meta.row + meta.settings._iDisplayStart + 1;
-                },
-                orderable: false,
-                searchable: false
+    let mobileData = [];
+    let mobileDisplayCount = 10;
+    let filteredData = [];
+
+    // Check if mobile view
+    const isMobile = $(window).width() < 768;
+
+    if (isMobile) {
+        // Load data for mobile cards
+        loadMobileData();
+    } else {
+        // Initialize DataTable for desktop
+        initDesktopTable();
+    }
+
+    // Initialize Desktop DataTable
+    function initDesktopTable() {
+        let table = $('#table_barang_masuk').DataTable({
+            processing: false,
+            serverSide: true,
+            paging: true,
+            autoWidth: false,
+            lengthMenu: [
+                [10, 25, 50, 100, -1],
+                [10, 25, 50, 100, "Show All"]
+            ],
+            pageLength: 10,
+            ajax: {
+                url: '{{ route("barang-masuk.get-data") }}',
+                type: 'GET'
             },
-            { data: 'date_formatted' },
-            { 
-                data: 'transaction_count', 
-                className: 'text-center',
-                render: function(data) {
-                    return `<span style="font-size: 0.9rem;">${data}</span>`;
+            columns: [
+                { 
+                    data: null,
+                    render: function(data, type, row, meta) {
+                        return meta.row + meta.settings._iDisplayStart + 1;
+                    },
+                    orderable: false,
+                    searchable: false
+                },
+                { data: 'date_formatted' },
+                { 
+                    data: 'transaction_count', 
+                    className: 'text-center',
+                    render: function(data) {
+                        return `<span style="font-size: 0.9rem;">${data}</span>`;
+                    }
+                },
+                { 
+                    data: 'date',
+                    className: 'text-center',
+                    render: function(data) {
+                        return `
+                            <button type="button" class="btn btn-info btn-sm btn_detail" data-date="${data}">
+                                <i class="fa fa-eye"></i> Detail
+                            </button>
+                        `;
+                    },
+                    orderable: false,
+                    searchable: false
                 }
-            },
-            { 
-                data: 'date',
-                className: 'text-center',
-                render: function(data) {
-                    return `
-                        <button type="button" class="btn btn-info btn-sm btn_detail" data-date="${data}">
-                            <i class="fa fa-eye"></i> Detail
-                        </button>
-                    `;
-                },
-                orderable: false,
-                searchable: false
-            }
-        ]
-    });
+            ]
+        });
 
-    // Adjust columns when sidebar is toggled (allow sidebar animation to finish)
-    $('[data-toggle="sidebar"]').on('click', function() {
-        setTimeout(function(){
+        // Adjust columns when sidebar is toggled
+        $('[data-toggle="sidebar"]').on('click', function() {
+            setTimeout(function(){
+                table.columns.adjust().draw(false);
+            }, 350);
+        });
+
+        $(window).on('resize', function(){
             table.columns.adjust().draw(false);
-        }, 350);
-    });
+        });
 
-    // Adjust columns on window resize
-    $(window).on('resize', function(){
-        table.columns.adjust().draw(false);
-    });
+        $('.main-sidebar').on('transitionend webkitTransitionEnd', function(){
+            table.columns.adjust().draw(false);
+        });
+    }
 
-    // Adjust after sidebar transition ends
-    $('.main-sidebar').on('transitionend webkitTransitionEnd', function(){
-        table.columns.adjust().draw(false);
-    });
-
-    // Show Detail Modal
-    $(document).on('click', '.btn_detail', function() {
-        let date = $(this).data('date');
+    // Load Mobile Data
+    function loadMobileData() {
+        $('#mobile-cards-container').html('<div class="loading-skeleton"></div><div class="loading-skeleton"></div><div class="loading-skeleton"></div>');
         
+        $.ajax({
+            url: '{{ route("barang-masuk.get-data") }}',
+            type: 'GET',
+            data: {
+                length: -1 // Get all data
+            },
+            success: function(response) {
+                mobileData = response.data;
+                filteredData = mobileData;
+                renderMobileCards();
+            },
+            error: function() {
+                $('#mobile-cards-container').html('<div class="text-center text-danger p-3">Gagal memuat data</div>');
+            }
+        });
+    }
+
+    // Render Mobile Cards
+    function renderMobileCards() {
+        const container = $('#mobile-cards-container');
+        container.empty();
+
+        if (filteredData.length === 0) {
+            container.html('<div class="text-center text-muted p-3">Tidak ada data</div>');
+            $('#load-more').hide();
+            return;
+        }
+
+        const displayData = filteredData.slice(0, mobileDisplayCount);
+        
+        displayData.forEach(function(item) {
+            const card = $(`
+                <div class="mobile-card" data-date="${item.date}">
+                    <div class="mobile-card-date">
+                        <i class="far fa-calendar-alt mr-2" style="color: #4e73df;"></i>${item.date_formatted}
+                    </div>
+                    <div class="mobile-card-info">
+                        <span class="mobile-card-count">
+                            <i class="fas fa-box mr-1"></i>
+                            ${item.transaction_count} transaksi
+                        </span>
+                        <button class="btn btn-info btn-sm mobile-card-btn">
+                            <i class="fa fa-eye"></i> Lihat
+                        </button>
+                    </div>
+                </div>
+            `);
+            container.append(card);
+        });
+
+        // Show/hide load more button
+        if (filteredData.length > mobileDisplayCount) {
+            $('#load-more').show();
+        } else {
+            $('#load-more').hide();
+        }
+    }
+
+    // Load More Button
+    $('#load-more').on('click', function() {
+        mobileDisplayCount += 10;
+        renderMobileCards();
+    });
+
+    // Mobile Search
+    $('#mobile-search').on('keyup', function() {
+        const searchTerm = $(this).val().toLowerCase();
+        
+        if (searchTerm === '') {
+            filteredData = mobileData;
+        } else {
+            filteredData = mobileData.filter(function(item) {
+                return item.date_formatted.toLowerCase().includes(searchTerm);
+            });
+        }
+        
+        mobileDisplayCount = 10;
+        renderMobileCards();
+    });
+
+    // Mobile Card Click Handler
+    $(document).on('click', '.mobile-card', function(e) {
+        e.preventDefault();
+        const date = $(this).data('date');
+        showDetailModal(date);
+    });
+
+    // Desktop Detail Button
+    $(document).on('click', '.btn_detail', function() {
+        const date = $(this).data('date');
+        showDetailModal(date);
+    });
+
+    // Show Detail Modal Function
+    function showDetailModal(date) {
         // Show loading state in modal
         $('#transactions-container').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="sr-only">Loading...</span></div></div>');
         $('#modal-date-title').text('Loading...');
@@ -182,7 +461,6 @@ $(document).ready(function() {
                     transactionsHtml = '<div class="text-center py-4 text-muted"><i class="fa fa-inbox fa-3x mb-3"></i><p>Tidak ada transaksi</p></div>';
                 } else {
                     data.transactions.forEach((transaction, index) => {
-                        // Hitung nomor transaksi mulai dari yang terbesar (transaksi terbaru = nomor terbesar)
                         const transactionNumber = data.transactions.length - index;
                         
                         transactionsHtml += `
@@ -217,7 +495,7 @@ $(document).ready(function() {
                                             <tbody>
                         `;
 
-                        transaction.items.forEach((item, itemIndex) => {
+                        transaction.items.forEach((item) => {
                             transactionsHtml += `
                                 <tr>
                                     <td style="font-size: 14px;">${item.part_no}</td>
@@ -245,7 +523,7 @@ $(document).ready(function() {
                 $('#transactions-container').html('<div class="text-center py-4 text-danger"><i class="fas fa-exclamation-circle mr-2"></i>Gagal memuat data transaksi</div>');
             }
         });
-    });
+    }
 });
 </script>
 @endpush

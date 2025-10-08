@@ -28,6 +28,10 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        if (Auth::user() && Auth::user()->role && Auth::user()->role->name === 'admin scanner') {
+            return redirect()->route('mobile.dashboard');
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

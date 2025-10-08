@@ -50,7 +50,9 @@
       <nav class="navbar navbar-expand-lg main-navbar">
         <form class="form-inline mr-auto">
           <ul class="navbar-nav mr-3"> 
+          @if(auth()->user()->role->name !== 'admin scanner')
             <li><a href="#" data-toggle="sidebar" class="nav-link nav-link-lg"><i class="fas fa-bars text-dark"></i></a></li>      
+          @endif
           </ul>
         </form>
         <ul class="navbar-nav navbar-right">
@@ -88,6 +90,7 @@
         </ul>
       </nav>
 
+      @if(auth()->user()->role->name !== 'admin scanner')
       <div class="main-sidebar sidebar-style-1 bg-dark">
         <aside id="sidebar-wrapper">
       
@@ -112,6 +115,7 @@
       
         </aside>
       </div>
+      @endif
 
       <!-- Main Content -->
       <div class="main-content">
