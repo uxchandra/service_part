@@ -6,9 +6,10 @@ use App\Http\Controllers\BarangController;
 use App\Http\Controllers\BarangMasukController;
 use App\Http\Controllers\OrdersController;
 use App\Http\Controllers\PullingController;
+use App\Http\Controllers\DashboardController;
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('auth.login');
 });
 
 Route::get('/dashboard', function () {
@@ -16,6 +17,7 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/mobile-dashboard', [DashboardController::class, 'mobile'])->name('mobile.dashboard');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
