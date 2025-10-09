@@ -4,7 +4,7 @@
 @section('content')
     <div class="section-header">
         <h1>Data Posting</h1>
-        <div class="ml-auto">
+        <div class="ml-auto" style="margin-top: 10px;">
         @if(auth()->user()->role->name === 'admin scanner')
             <a href="{{ route('mobile.dashboard') }}" class="btn btn-dark btn-sm">
                 <i class="fa fa-arrow-left"></i> Kembali
@@ -27,8 +27,10 @@
                         <div class="search-box mb-3">
                             <input type="text" id="mobile-search" class="form-control form-control-sm" placeholder="Cari tanggal...">
                         </div>
-                        <div id="mobile-cards-container">
-                            <!-- Cards will be loaded here -->
+                        <div class="container-fluid p-0">
+                            <div class="row" id="mobile-cards-container">
+                                <!-- Cards will be loaded here -->
+                            </div>
                         </div>
                         <div class="text-center mt-3">
                             <button id="load-more" class="btn btn-secondary btn-sm" style="display: none;">
@@ -56,10 +58,37 @@
             </div>
         </div>
     </div>
+
+    <!-- Template untuk Mobile Card -->
+    <template id="mobile-card-template">
+        <div class="col-12 mb-2 mobile-card-wrapper" data-date="{date}">
+            <div class="card border-left-primary shadow-sm mobile-card">
+                <div class="card-body p-2">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="flex-grow-1">
+                            <div class="mobile-card-date">
+                                <i class="far fa-calendar-alt mr-1"></i>{date_formatted}
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-box mr-1"></i>{transaction_count} transaksi
+                            </small>
+                        </div>
+                        <button class="btn btn-info btn-sm mobile-card-btn" type="button">
+                            <i class="fa fa-eye"></i> Lihat
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
 @endsection
 
 @push('styles')
 <style>
+    .border-left-primary {
+        border-left: 4px solid #4e73df !important;
+    }
+
     /* Mobile Optimizations for EDA50K (480x800) */
     @media (max-width: 767px) {
         body {
@@ -68,11 +97,11 @@
         
         .section-header {
             padding: 10px 0;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
         
         .section-header h1 {
-            font-size: 18px;
+            font-size: 16px;
             margin-bottom: 0;
         }
         
@@ -81,51 +110,34 @@
         }
         
         .card-body {
-            padding: 8px !important;
+            padding: 10px !important;
         }
 
-        /* Mobile Cards Style */
-        .mobile-card {
-            background: white;
-            border: 1px solid #e3e6f0;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        /* Mobile Cards Style menggunakan template */
+        .mobile-card-wrapper .card {
+            margin-bottom: 0;
             cursor: pointer;
             transition: all 0.2s;
-            min-height: 70px;
         }
 
-        .mobile-card:active {
+        .mobile-card-wrapper .card:active {
             background: #f8f9fc;
             transform: scale(0.98);
         }
 
+        .mobile-card-wrapper .card-body {
+            padding: 10px !important;
+        }
+
         .mobile-card-date {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
             color: #2c3e50;
-            margin-bottom: 6px;
-        }
-
-        .mobile-card-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .mobile-card-count {
-            font-size: 14px;
-            color: #6c757d;
-        }
-
-        .mobile-card-count i {
-            color: #4e73df;
+            margin-bottom: 4px;
         }
 
         .mobile-card-btn {
-            padding: 6px 12px;
+            padding: 5px 10px;
             font-size: 13px;
             border-radius: 5px;
         }
@@ -149,6 +161,39 @@
         @keyframes loading {
             0% { background-position: 200% 0; }
             100% { background-position: -200% 0; }
+        }
+    }
+
+    /* Scanner 480px specific */
+    @media (max-width: 480px) {
+        .section-header {
+            padding: 8px 0;
+            margin-bottom: 8px;
+        }
+        
+        .section-header h1 {
+            font-size: 15px;
+        }
+
+        .card-body {
+            padding: 8px !important;
+        }
+
+        .mobile-card-wrapper .card-body {
+            padding: 8px !important;
+        }
+
+        .mobile-card-date {
+            font-size: 13px;
+        }
+
+        .mobile-card-wrapper small {
+            font-size: 11px;
+        }
+
+        .mobile-card-btn {
+            padding: 4px 8px;
+            font-size: 12px;
         }
     }
 
@@ -261,6 +306,22 @@
         padding: 40px;
         color: #858796;
     }
+
+    /* Slide in animation */
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .mobile-card-wrapper {
+        animation: slideIn 0.3s ease;
+    }
 </style>
 @endpush
 
@@ -349,7 +410,11 @@ $(document).ready(function() {
 
     // Load Mobile Data
     function loadMobileData() {
-        $('#mobile-cards-container').html('<div class="loading-skeleton"></div><div class="loading-skeleton"></div><div class="loading-skeleton"></div>');
+        $('#mobile-cards-container').html(`
+            <div class="col-12 mb-2"><div class="loading-skeleton"></div></div>
+            <div class="col-12 mb-2"><div class="loading-skeleton"></div></div>
+            <div class="col-12 mb-2"><div class="loading-skeleton"></div></div>
+        `);
         
         $.ajax({
             url: '{{ route("barang-masuk.get-data") }}',
@@ -363,18 +428,18 @@ $(document).ready(function() {
                 renderMobileCards();
             },
             error: function() {
-                $('#mobile-cards-container').html('<div class="text-center text-danger p-3">Gagal memuat data</div>');
+                $('#mobile-cards-container').html('<div class="col-12"><div class="text-center text-danger p-3">Gagal memuat data</div></div>');
             }
         });
     }
 
-    // Render Mobile Cards
+    // Render Mobile Cards menggunakan template
     function renderMobileCards() {
         const container = $('#mobile-cards-container');
         container.empty();
 
         if (filteredData.length === 0) {
-            container.html('<div class="text-center text-muted p-3">Tidak ada data</div>');
+            container.html('<div class="col-12"><div class="text-center text-muted p-3">Tidak ada data</div></div>');
             $('#load-more').hide();
             return;
         }
@@ -382,23 +447,14 @@ $(document).ready(function() {
         const displayData = filteredData.slice(0, mobileDisplayCount);
         
         displayData.forEach(function(item) {
-            const card = $(`
-                <div class="mobile-card" data-date="${item.date}">
-                    <div class="mobile-card-date">
-                        <i class="far fa-calendar-alt mr-2" style="color: #4e73df;"></i>${item.date_formatted}
-                    </div>
-                    <div class="mobile-card-info">
-                        <span class="mobile-card-count">
-                            <i class="fas fa-box mr-1"></i>
-                            ${item.transaction_count} transaksi
-                        </span>
-                        <button class="btn btn-info btn-sm mobile-card-btn">
-                            <i class="fa fa-eye"></i> Lihat
-                        </button>
-                    </div>
-                </div>
-            `);
-            container.append(card);
+            // Ambil template dan ganti placeholder
+            let template = $('#mobile-card-template').html();
+            template = template.replace(/{date}/g, item.date);
+            template = template.replace(/{date_formatted}/g, item.date_formatted);
+            template = template.replace(/{transaction_count}/g, item.transaction_count);
+            
+            // Tambahkan card baru
+            container.append(template);
         });
 
         // Show/hide load more button
@@ -431,10 +487,11 @@ $(document).ready(function() {
         renderMobileCards();
     });
 
-    // Mobile Card Click Handler
-    $(document).on('click', '.mobile-card', function(e) {
+    // Mobile Card Click Handler - delegate to container
+    $(document).on('click', '.mobile-card-wrapper .card, .mobile-card-wrapper .mobile-card-btn', function(e) {
         e.preventDefault();
-        const date = $(this).data('date');
+        e.stopPropagation();
+        const date = $(this).closest('.mobile-card-wrapper').data('date');
         showDetailModal(date);
     });
 

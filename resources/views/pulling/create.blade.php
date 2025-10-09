@@ -137,8 +137,12 @@
                     </div>
 
                     <!-- Mobile Scanned Cards -->
-                    <div class="d-block d-md-none" id="mobile-scanned-items">
-                        <div id="mobile-scanned-container"></div>
+                    <div class="d-block d-md-none">
+                        <div class="container-fluid p-0">
+                            <div class="row" id="mobile-scanned-container">
+                                <!-- Items will be added here -->
+                            </div>
+                        </div>
                         <div id="empty-scanned" class="text-center text-muted py-4">
                             <i class="fa fa-inbox fa-2x mb-2"></i>
                             <p>Belum ada item yang discan</p>
@@ -148,10 +152,41 @@
             </div>
         </div>
     </div>
+
+    <!-- Template untuk Mobile Scanned Item Card -->
+    <template id="mobile-scanned-template">
+        <div class="col-12 mb-2 scanned-item-card-wrapper" data-item-id="{item_id}">
+            <div class="card border-left-success shadow-sm">
+                <div class="card-body p-2">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="flex-grow-1">
+                            <div class="font-weight-bold text-dark" style="font-size: 14px;">{part_no}</div>
+                            <small class="text-muted d-block">{part_name}</small>
+                            <small class="text-muted">Stok: <span class="badge badge-secondary">{stok}</span></small>
+                        </div>
+                        <button type="button" class="btn btn-danger btn-sm btn_delete_item" data-item-id="{item_id}">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="text-dark small mb-1">Jumlah:</label>
+                        <input type="number" class="form-control form-control-sm qty_input" 
+                               value="{quantity}" min="1"
+                               data-item-id="{item_id}"
+                               style="max-width: 100px; text-align: center; font-weight: bold;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
 @endsection
 
 @push('styles')
 <style>
+.border-left-success {
+    border-left: 4px solid #28a745 !important;
+}
+
 @media (max-width: 767px) {
     body { font-size: 14px; }
     .section-header { padding: 10px 0; margin-bottom: 10px; }
@@ -169,40 +204,13 @@
         margin-bottom: 8px;
     }
     
-    /* Scanned Item Cards */
-    .scanned-item-card {
-        background: #f8f9fc;
-        border: 1px solid #e3e6f0;
-        border-radius: 6px;
-        padding: 10px;
-        margin-bottom: 8px;
+    /* Scanned Item Cards - menggunakan template */
+    .scanned-item-card-wrapper .card {
+        margin-bottom: 0;
     }
     
-    .scanned-item-header {
-        margin-bottom: 8px;
-    }
-    
-    .scanned-item-actions {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        padding-top: 8px;
-        border-top: 1px solid #e3e6f0;
-    }
-    
-    .scanned-item-actions input {
-        flex: 1;
-        text-align: center;
-        font-weight: bold;
-        font-size: 16px;
-        height: 38px;
-    }
-    
-    .scanned-item-actions .btn-danger {
-        width: 38px;
-        height: 38px;
-        padding: 0;
-        flex-shrink: 0;
+    .scanned-item-card-wrapper .card-body {
+        padding: 10px !important;
     }
     
     .form-control {
@@ -215,6 +223,21 @@
     }
 }
 
+@media (max-width: 480px) {
+    .scanned-item-card-wrapper .card-body {
+        padding: 8px !important;
+    }
+    
+    .scanned-item-card-wrapper h6,
+    .scanned-item-card-wrapper .font-weight-bold {
+        font-size: 13px !important;
+    }
+    
+    .scanned-item-card-wrapper small {
+        font-size: 11px;
+    }
+}
+
 /* Highlight animation */
 .highlight-success {
     animation: highlightFade 1s ease-in-out;
@@ -223,6 +246,21 @@
 @keyframes highlightFade {
     0% { background-color: #d4edda; }
     100% { background-color: transparent; }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.scanned-item-card-wrapper {
+    animation: slideIn 0.3s ease;
 }
 </style>
 @endpush
@@ -305,43 +343,33 @@ $(document).ready(function(){
         }
     }
 
-    // Update Mobile Cards
+    // Update Mobile Cards menggunakan template
     function updateMobileScannedItem(item) {
         $('#empty-scanned').hide();
         
         if (item.is_update) {
-            const card = $(`#mobile-scanned-container .scanned-item-card[data-item-id="${item.id}"]`);
+            const card = $(`#mobile-scanned-container .scanned-item-card-wrapper[data-item-id="${item.id}"]`);
             card.find('.qty_input').val(item.quantity);
-            card.addClass('highlight-success');
-            setTimeout(() => card.removeClass('highlight-success'), 1000);
+            card.find('.card').addClass('highlight-success');
+            setTimeout(() => card.find('.card').removeClass('highlight-success'), 1000);
         } else {
-            $('#mobile-scanned-container').append(`
-                <div class="scanned-item-card" data-item-id="${item.id}">
-                    <div class="scanned-item-header">
-                        <div class="font-weight-bold text-dark" style="font-size: 14px;">${item.part_no}</div>
-                        <small class="text-muted">${item.part_name}</small>
-                        <div class="mt-1">
-                            <small class="text-muted">Stok: <span class="badge badge-secondary">${item.stok}</span></small>
-                        </div>
-                    </div>
-                    <div class="scanned-item-actions">
-                        <input type="number" class="form-control qty_input" 
-                               value="${item.quantity}" min="1"
-                               data-item-id="${item.id}">
-                        <button type="button" class="btn btn-danger btn_delete_item" 
-                                data-item-id="${item.id}">
-                            <i class="fa fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `);
+            // Ambil template dan ganti placeholder
+            let template = $('#mobile-scanned-template').html();
+            template = template.replace(/{item_id}/g, item.id);
+            template = template.replace(/{part_no}/g, item.part_no);
+            template = template.replace(/{part_name}/g, item.part_name);
+            template = template.replace(/{stok}/g, item.stok);
+            template = template.replace(/{quantity}/g, item.quantity);
+            
+            // Tambahkan card baru di awal
+            $('#mobile-scanned-container').prepend(template);
         }
     }
 
     // Delete item
     $(document).on('click', '.btn_delete_item', function(){
         const itemId = $(this).data('item-id');
-        const container = $(this).closest(isMobile ? '.scanned-item-card' : 'tr');
+        const container = $(this).closest(isMobile ? '.scanned-item-card-wrapper' : 'tr');
         
         Swal.fire({
             title: 'Hapus Item?',
@@ -350,7 +378,8 @@ $(document).ready(function(){
             showCancelButton: true,
             confirmButtonColor: '#d33',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, Hapus'
+            confirmButtonText: 'Ya, Hapus',
+            cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
                 $.ajax({
@@ -359,12 +388,14 @@ $(document).ready(function(){
                     data: { _token: $('meta[name="csrf-token"]').attr('content') },
                     success: function(resp){
                         if (resp.success) {
-                            container.remove();
-                            checkSubmitButton();
-                            
-                            if (isMobile && $('#mobile-scanned-container .scanned-item-card').length === 0) {
-                                $('#empty-scanned').show();
-                            }
+                            container.fadeOut(300, function() {
+                                $(this).remove();
+                                checkSubmitButton();
+                                
+                                if (isMobile && $('#mobile-scanned-container .scanned-item-card-wrapper').length === 0) {
+                                    $('#empty-scanned').show();
+                                }
+                            });
                             
                             Swal.fire({
                                 toast: true,
@@ -386,13 +417,21 @@ $(document).ready(function(){
         });
     });
 
+    // Update quantity on change (untuk validasi)
+    $(document).on('input', '.qty_input', function() {
+        let val = parseInt($(this).val());
+        if (val < 1 || isNaN(val)) {
+            $(this).val(1);
+        }
+    });
+
     // Submit pulling
     $('#btn_submit').on('click', function(){
         const orderId = $('#order_id').val();
         const items = [];
         
         if (isMobile) {
-            $('#mobile-scanned-container .scanned-item-card').each(function(){
+            $('#mobile-scanned-container .scanned-item-card-wrapper').each(function(){
                 const itemId = $(this).data('item-id');
                 const qty = $(this).find('.qty_input').val();
                 if (itemId && qty > 0) {
@@ -421,7 +460,8 @@ $(document).ready(function(){
             showCancelButton: true,
             confirmButtonColor: '#28a745',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, Submit'
+            confirmButtonText: 'Ya, Submit',
+            cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
                 $.ajax({
@@ -456,7 +496,7 @@ $(document).ready(function(){
     // Enable/disable submit button
     function checkSubmitButton() {
         const hasItems = isMobile 
-            ? $('#mobile-scanned-container .scanned-item-card').length > 0
+            ? $('#mobile-scanned-container .scanned-item-card-wrapper').length > 0
             : $('#scanned_items_tbody tr').length > 0;
         $('#btn_submit').prop('disabled', !hasItems);
     }

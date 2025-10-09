@@ -42,11 +42,9 @@
                         <!-- Items List Section -->
                         <h6 class="mb-2">Daftar Barang <span class="badge badge-primary" id="item_count">0</span></h6>
                         
-                        <div id="items_container">
-                            <!-- Empty State -->
-                            <div class="text-center py-4" id="empty_state">
-                                <i class="fa fa-inbox fa-3x text-muted mb-2"></i>
-                                <p class="text-muted mb-0">Belum ada barang<br><small>Scan QR Label untuk menambah</small></p>
+                        <div class="container-fluid p-0">
+                            <div class="row" id="items_container">
+                                <!-- Items will be added here dynamically -->
                             </div>
                         </div>
                     </div>
@@ -63,10 +61,42 @@
             </div>
         </div>
     </div>
+
+    <!-- Template untuk card item -->
+    <template id="item-card-template">
+        <div class="col-12 mb-2 item-card" id="cardItem{id}" data-qr-label="{qr_label}">
+            <div class="card border-left-primary shadow-sm">
+                <div class="card-body p-2">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="font-weight-bold text-primary mb-1">{part_no}</h6>
+                            <small class="text-muted">Stok: <span class="badge badge-info">{stok}</span></small>
+                        </div>
+                        <button type="button" class="btn btn-danger btn-sm delete_card">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="text-dark small mb-1">Jumlah:</label>
+                        <div class="d-flex align-items-center" style="gap: 8px;">
+                            <input type="number" class="form-control form-control-sm qty-input" style="width: 80px;" value="1" min="1" required>
+                            <input type="hidden" class="barang-id" value="{barang_id}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
 @endsection
 
 @push('styles')
 <style>
+/* Base Styles */
+.border-left-primary {
+    border-left: 4px solid #4e73df !important;
+}
+
+/* Mobile First - Base untuk semua mobile */
 @media (max-width: 767px) {
     body { font-size: 14px; }
     .section-header { padding: 10px 0; margin-bottom: 10px; }
@@ -74,7 +104,6 @@
     .card-body { padding: 10px !important; }
     .card-footer { padding: 10px; }
     
-    /* Scan Input */
     #qr_scan {
         font-size: 16px;
         height: 42px;
@@ -82,56 +111,6 @@
     
     .input-group-text {
         padding: 0.5rem;
-    }
-    
-    /* Item Card Mobile */
-    .barang-card {
-        background: #f8f9fc;
-        border: 1px solid #e3e6f0;
-        border-radius: 6px;
-        padding: 10px;
-        margin-bottom: 8px;
-        animation: slideIn 0.3s ease;
-    }
-    
-    .barang-card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: start;
-        margin-bottom: 8px;
-    }
-    
-    .barang-part-no {
-        font-size: 14px;
-        font-weight: bold;
-        color: #2c3e50;
-    }
-    
-    .barang-stok {
-        font-size: 12px;
-        color: #6c757d;
-    }
-    
-    .barang-actions {
-        display: flex;
-        gap: 8px;
-        padding-top: 8px;
-        border-top: 1px solid #e3e6f0;
-    }
-    
-    .barang-actions input {
-        flex: 1;
-        text-align: center;
-        font-weight: bold;
-        font-size: 16px;
-        height: 38px;
-    }
-    
-    .barang-actions .btn {
-        width: 38px;
-        height: 38px;
-        padding: 0;
-        flex-shrink: 0;
     }
     
     .form-label {
@@ -144,24 +123,79 @@
         font-size: 14px;
         padding: 8px 16px;
     }
+    
+    /* Item Card */
+    .item-card .card {
+        margin-bottom: 0;
+    }
+    
+    .item-card .card-body {
+        padding: 10px !important;
+    }
+    
+    .item-card h6 {
+        font-size: 14px;
+        margin-bottom: 3px;
+    }
+    
+    .item-card .qty-input {
+        width: 70px !important;
+        text-align: center;
+        font-weight: bold;
+        font-size: 16px;
+        height: 38px;
+    }
+    
+    .item-card .btn-danger {
+        padding: 6px 10px !important;
+        font-size: 14px;
+    }
 }
 
-/* Desktop styles */
-.barang-row {
-    padding: 12px 15px;
-    background: #f8f9fc;
-    border: 1px solid #e3e6f0;
-    border-radius: 6px;
-    margin-bottom: 12px;
-    transition: all 0.3s ease;
-    animation: slideIn 0.3s ease;
+/* Scanner Khusus 480px */
+@media (max-width: 480px) {
+    body { font-size: 13px; }
+    .section-header { padding: 8px 0; margin-bottom: 8px; }
+    .section-header h1 { font-size: 15px; }
+    .card-body { padding: 8px !important; }
+    .card-footer { padding: 8px; }
+    
+    .item-card .card-body {
+        padding: 8px !important;
+    }
+    
+    .item-card h6 {
+        font-size: 13px;
+    }
+    
+    .item-card .qty-input {
+        width: 60px !important;
+        font-size: 14px;
+        height: 34px;
+    }
+    
+    .item-card .btn-danger {
+        padding: 5px 8px !important;
+        font-size: 13px;
+    }
+    
+    .item-card small {
+        font-size: 11px;
+    }
 }
 
-.barang-row:hover {
-    border-color: #4e73df;
-    box-shadow: 0 2px 8px rgba(78, 115, 223, 0.1);
+/* Desktop */
+@media (min-width: 768px) {
+    .item-card .card-body {
+        padding: 15px !important;
+    }
+    
+    .item-card .qty-input {
+        width: 100px !important;
+    }
 }
 
+/* Animations */
 @keyframes slideIn {
     from {
         opacity: 0;
@@ -173,48 +207,10 @@
     }
 }
 
-.qty-input {
-    font-size: 0.9rem;
-    font-weight: 600;
-    text-align: center;
-    height: 38px;
+.item-card {
+    animation: slideIn 0.3s ease;
 }
 
-.stok-display {
-    font-size: 0.9rem;
-    font-weight: 600;
-    text-align: center;
-    padding: 8px;
-    background: #e7f3ff;
-    border: 1px solid #b3d9ff;
-    border-radius: 4px;
-    color: #004085;
-}
-
-.part-no-display {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #2d3748;
-    padding: 8px;
-    background: white;
-    border: 1px solid #e3e6f0;
-    border-radius: 4px;
-    min-height: 38px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-.small {
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-.remove-barang {
-    height: 38px;
-}
-
-/* Highlight animation */
 .highlight-success {
     animation: highlightFade 1s ease-in-out;
 }
@@ -230,7 +226,6 @@
 <script>
 $(document).ready(function() {
     let itemCounter = 0;
-    const isMobile = $(window).width() < 768;
 
     // Scan QR on Enter
     $('#qr_scan').on('keypress', function(e) {
@@ -277,9 +272,8 @@ $(document).ready(function() {
 
         // CEK APAKAH BARANG SUDAH ADA DI LIST
         let foundExisting = false;
-        const selector = isMobile ? '.barang-card' : '.barang-row';
         
-        $(selector).each(function() {
+        $('.item-card').each(function() {
             let existingQR = $(this).attr('data-qr-label');
             
             if (existingQR && existingQR.toUpperCase() === qrLabel) {
@@ -292,8 +286,8 @@ $(document).ready(function() {
                 qtyInput.val(newQty);
                 
                 // Highlight effect
-                $(this).addClass('highlight-success');
-                setTimeout(() => $(this).removeClass('highlight-success'), 1000);
+                $(this).find('.card').addClass('highlight-success');
+                setTimeout(() => $(this).find('.card').removeClass('highlight-success'), 1000);
                 
                 // Reset dan focus
                 $('#qr_scan').val('');
@@ -316,7 +310,7 @@ $(document).ready(function() {
             },
             success: function(response) {
                 if (response.status === 'success') {
-                    addItemRow(response.data, qrLabel);
+                    addItemCard(response.data, qrLabel);
                     $('#qr_scan').val('');
                     setTimeout(() => $('#qr_scan').focus(), 50);
                 }
@@ -334,70 +328,28 @@ $(document).ready(function() {
         });
     }
 
-    // Function Add Item Row
-    function addItemRow(barang, qrLabel) {
-        itemCounter++;
-        $('#empty_state').hide();
-        
+    // Function Add Item Card
+    function addItemCard(barang, qrLabel) {
         let qrLabelToStore = qrLabel || barang.qr_label;
         
-        if (isMobile) {
-            // Mobile Card Layout
-            const newCard = `
-                <div class="barang-card" id="row_${itemCounter}" data-barang-id="${barang.id}" data-qr-label="${qrLabelToStore}">
-                    <div class="barang-card-header">
-                        <div>
-                            <div class="barang-part-no">${barang.part_no}</div>
-                            <div class="barang-stok">Stok: <span class="badge badge-info">${barang.stok_current}</span></div>
-                        </div>
-                    </div>
-                    <div class="barang-actions">
-                        <input type="number" class="form-control qty-input" data-row="${itemCounter}" value="1" min="1" required>
-                        <button type="button" class="btn btn-danger remove-barang" data-row="${itemCounter}">
-                            <i class="fa fa-trash"></i>
-                        </button>
-                    </div>
-                    <input type="hidden" class="barang-id" value="${barang.id}">
-                </div>
-            `;
-            $('#items_container').append(newCard);
-        } else {
-            // Desktop Row Layout
-            const newRow = `
-                <div class="row barang-row align-items-center" id="row_${itemCounter}" data-barang-id="${barang.id}" data-qr-label="${qrLabelToStore}">
-                    <div class="col-md-4 col-12 mb-md-0 mb-2">
-                        <label class="small mb-1 text-dark">Part No:</label>
-                        <div class="part-no-display">${barang.part_no}</div>
-                        <input type="hidden" class="barang-id" value="${barang.id}">
-                    </div>
-                    
-                    <div class="col-md-3 col-6 mb-md-0 mb-2">
-                        <label class="small mb-1 text-dark">Stok Saat Ini:</label>
-                        <div class="stok-display">${barang.stok_current}</div>
-                    </div>
-                    
-                    <div class="col-md-3 col-6 mb-md-0 mb-2">
-                        <label class="small mb-1 text-dark">Qty Masuk:</label>
-                        <input type="number" class="form-control qty-input" data-row="${itemCounter}" value="1" min="1" required>
-                    </div>
-                    
-                    <div class="col-md-2 col-12 d-flex align-items-end">
-                        <label class="small mb-1 text-dark d-md-block d-none" style="visibility: hidden;">Aksi</label>
-                        <button type="button" class="btn btn-danger btn-sm remove-barang w-100" data-row="${itemCounter}">
-                            <i class="fas fa-trash"></i> Hapus
-                        </button>
-                    </div>
-                </div>
-            `;
-            $('#items_container').append(newRow);
-        }
+        // Ambil template dan ganti placeholder
+        let template = $('#item-card-template').html();
+        template = template.replace(/{id}/g, itemCounter);
+        template = template.replace(/{part_no}/g, barang.part_no);
+        template = template.replace(/{stok}/g, barang.stok_current);
+        template = template.replace(/{barang_id}/g, barang.id);
+        template = template.replace(/{qr_label}/g, qrLabelToStore);
         
+        // Tambahkan card baru di awal
+        $('#items_container').prepend(template);
+        
+        itemCounter++;
         updateSummary();
     }
 
-    // Remove Item Row
-    $(document).on('click', '.remove-barang', function() {
-        let row = $(this).data('row');
+    // Delete card handler
+    $(document).on('click', '.delete_card', function(e) {
+        e.preventDefault();
         
         Swal.fire({
             title: 'Hapus Item?',
@@ -410,14 +362,9 @@ $(document).ready(function() {
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
-                $(`#row_${row}`).fadeOut(300, function() {
+                $(this).closest('.item-card').fadeOut(300, function() {
                     $(this).remove();
                     updateSummary();
-                    
-                    const selector = isMobile ? '.barang-card' : '.barang-row';
-                    if ($(selector).length === 0) {
-                        $('#empty_state').show();
-                    }
                 });
             }
         });
@@ -434,8 +381,7 @@ $(document).ready(function() {
 
     // Function Update Summary
     function updateSummary() {
-        const selector = isMobile ? '.barang-card' : '.barang-row';
-        let totalItems = $(selector).length;
+        let totalItems = $('.item-card').length;
         $('#item_count').text(totalItems);
     }
 
@@ -443,9 +389,7 @@ $(document).ready(function() {
     $('#form_barang_masuk').on('submit', function(e) {
         e.preventDefault();
         
-        const selector = isMobile ? '.barang-card' : '.barang-row';
-        
-        if ($(selector).length === 0) {
+        if ($('.item-card').length === 0) {
             Swal.fire({
                 icon: 'error',
                 title: 'Error!',
@@ -459,7 +403,7 @@ $(document).ready(function() {
         let items = [];
         let hasInvalidQty = false;
 
-        $(selector).each(function() {
+        $('.item-card').each(function() {
             let barangId = $(this).find('.barang-id').val();
             let quantity = $(this).find('.qty-input').val();
             
