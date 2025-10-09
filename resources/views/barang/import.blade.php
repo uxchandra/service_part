@@ -43,7 +43,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-dark" data-dismiss="modal">Batal</button>
                     <button type="submit" class="btn btn-primary" id="btn_import">
                         <i class="fa fa-upload"></i> Import Data
                     </button>

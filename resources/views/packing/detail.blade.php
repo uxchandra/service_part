@@ -28,11 +28,11 @@
                         <div class="card shadow-sm flex-fill" style="overflow: hidden;">
                             <div class="card-body p-2 d-flex flex-column" style="height: 100%;">
                                 <!-- Keypoint Image -->
-                                <div id="keypoint-container" style="height: 70%; min-height: 0; display: flex; flex-direction: column; margin-bottom: 0.5rem;">
+                                <div id="keypoint-container" style="height: 60%; min-height: 0; display: flex; flex-direction: column; margin-bottom: 0.5rem;">
                                     <!-- Keypoint image will be loaded here -->
                                 </div>
                                 <!-- Warna Plastik Image -->
-                                <div id="warna_plastik-container" style="height: 30%; min-height: 0; display: flex; flex-direction: column;">
+                                <div id="warna_plastik-container" style="height: 40%; min-height: 0; display: flex; flex-direction: column;">
                                     <!-- Warna plastik image will be loaded here -->
                                 </div>
                             </div>

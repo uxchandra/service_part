@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Order;
 use App\Models\Barang;
 use App\Models\BarangKeluar;
@@ -84,6 +85,9 @@ class PullingController extends Controller
             // $id sekarang adalah order_id, bukan barang_keluar_id
             $orderId = $id;
             
+            // Ambil order untuk referensi qty order per part_no
+            $order = Order::with('orderItems')->findOrFail($orderId);
+
             // Get all completed transactions for this order (sorted by latest first)
             $transactions = BarangKeluar::with(['items.barang', 'user'])
                 ->where('order_id', $orderId)
@@ -91,12 +95,17 @@ class PullingController extends Controller
                 ->orderBy('tanggal_keluar', 'desc')
                 ->get();
             
-            $transactionsData = $transactions->map(function($transaction, $index) {
-                $items = $transaction->items->map(function($item) {
+            $transactionsData = $transactions->map(function($transaction, $index) use ($order) {
+                $items = $transaction->items->map(function($item) use ($order) {
+                    $partNo = $item->barang ? $item->barang->part_no : '-';
+                    $orderItem = $item->barang
+                        ? $order->orderItems->where('part_no', $item->barang->part_no)->first()
+                        : null;
                     return [
-                        'part_no' => $item->barang->part_no ?? '-',
-                        'part_name' => $item->barang->part_name ?? '-',
+                        'part_no' => $partNo,
+                        'part_name' => $item->barang ? $item->barang->part_name : '-',
                         'quantity' => $item->quantity,
+                        'qty_order' => $orderItem ? (int) $orderItem->quantity : 0,
                     ];
                 });
                 
@@ -148,7 +157,7 @@ class PullingController extends Controller
         $barangKeluar = BarangKeluar::create([
             'order_id' => $order->id,
             'tanggal_keluar' => null, // null untuk draft
-            'user_id' => auth()->id()
+            'user_id' => Auth::id()
         ]);
 
         $scannedItems = collect(); // Kosong karena baru dibuat
@@ -328,7 +337,7 @@ class PullingController extends Controller
             $barangKeluar = BarangKeluar::create([
                 'order_id' => $order->id,
                 'tanggal_keluar' => now(),
-                'user_id' => auth()->id()
+                'user_id' => Auth::id()
             ]);
 
             // Update qty dan kurangi stok, lalu pindahkan ke record baru
@@ -359,12 +368,33 @@ class PullingController extends Controller
                 $existingDraft->delete();
             }
 
-            // PERUBAHAN: Update status order berdasarkan fulfillment
-            if ($isFullyFulfilled) {
-                $order->status = 'pulling'; // Semua item lengkap
+            // PERUBAHAN: Update status order berdasarkan fulfillment KUMULATIF (semua transaksi pulling)
+            // Hitung total qty pulling per part di SEMUA transaksi completed untuk order ini
+            $completedTransactions = BarangKeluar::with(['items.barang'])
+                ->where('order_id', $order->id)
+                ->whereNotNull('tanggal_keluar')
+                ->get();
+
+            $isCumulativelyFulfilled = true;
+            foreach ($order->orderItems as $orderItem) {
+                $partNo = $orderItem->part_no;
+                $totalPulledForPart = 0;
+                foreach ($completedTransactions as $txn) {
+                    $totalPulledForPart += $txn->items
+                        ->filter(function ($it) use ($partNo) { return $it->barang && $it->barang->part_no === $partNo; })
+                        ->sum('quantity');
+                }
+                if ($totalPulledForPart < (int) $orderItem->quantity) {
+                    $isCumulativelyFulfilled = false;
+                    break;
+                }
+            }
+
+            if ($isCumulativelyFulfilled) {
+                $order->status = 'pulling';
                 $message = 'Pulling berhasil disubmit (Lengkap)';
             } else {
-                $order->status = 'partial'; // Ada item yang kurang/tidak lengkap
+                $order->status = 'partial';
                 $message = 'Pulling berhasil disubmit (Partial)';
             }
             $order->save();

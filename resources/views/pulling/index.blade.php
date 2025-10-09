@@ -155,7 +155,8 @@ $(document).ready(function(){
                                                     <tr>
                                                         <th style="font-size: 14px;">Part No</th>
                                                         <th style="font-size: 14px;">Part Name</th>
-                                                        <th style="width: 10%; font-size: 14px; text-align: center">Qty</th>
+                                                        <th style="width: 10%; font-size: 12px; text-align: center">Order</th>
+                                                        <th style="width: 10%; font-size: 12px; text-align: center">Pulling</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -166,6 +167,7 @@ $(document).ready(function(){
                                     <tr>
                                         <td style="font-size: 14px;">${item.part_no}</td>
                                         <td style="font-size: 14px;">${item.part_name}</td>
+                                        <td class="text-center" style="font-size: 14px;"><strong>${item.qty_order}</strong></td>
                                         <td class="text-center" style="font-size: 14px;"><strong>${item.quantity}</strong></td>
                                     </tr>
                                 `;

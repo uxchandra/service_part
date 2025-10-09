@@ -41,9 +41,8 @@
                         <table id="table_orders" class="display" style="font-size: 13px; width:100%;">
                             <thead>
                                 <tr>
-                                    <th style="text-align:center">No Order</th>
-                                    <th>Item (Part No)</th>
-                                    <th class="text-center">Qty</th>
+                                    <th style="text-align:center">No Transaksi</th>
+                                    <th class="text-center">Jumlah Item</th>
                                     <th>Delivery Date</th>
                                     <th>Status</th>
                                     <th class="text-center">Progress</th>
@@ -58,6 +57,8 @@
         </div>
     </div>
 @endsection
+
+@include('orders.show')
 
 <!-- Import Modal -->
 <div class="modal fade" id="modal_import" tabindex="-1" role="dialog" aria-hidden="true">
@@ -184,8 +185,7 @@ $(document).ready(function() {
             ajax: { url: '{{ route("orders.get-data") }}', type: 'GET' },
             columns: [
                 { data: 'no_transaksi_display', className: 'text-center' },
-                { data: 'part_no' },
-                { data: 'qty', className: 'text-center' },
+                { data: 'jumlah_item', className: 'text-center' },
                 { data: 'delivery_date_display' },
                 { data: 'status_display' },
                 { 
@@ -200,8 +200,6 @@ $(document).ready(function() {
                     orderable: false,
                     searchable: false,
                     render: function(_, __, row) {
-                        if (!row.is_group_start) return '';
-                        
                         const isAdminScanner = '{{ auth()->user()->role->name }}' === 'admin scanner';
                         
                         if (isAdminScanner) {
@@ -213,6 +211,8 @@ $(document).ready(function() {
                         }
                         
                         // Role lain: tampilkan semua button
+                        let detailBtn = `<button type="button" class="btn btn-icon btn-primary btn-sm mr-2 btn_detail" data-id="${row.order_id}" title="Detail" data-toggle="tooltip" style="width: 26px; height: 26px; display:flex; align-items:center; justify-content:center;"><i class="fa fa-eye"></i></button>`;
+                        
                         let scanBtn = '';
                         if (row.status === 'planning' || row.status === 'partial') {
                             scanBtn = `<a href="/pulling/create?order_id=${row.order_id}" class="btn btn-icon btn-info btn-sm mr-2" title="Pulling" data-toggle="tooltip" style="width: 26px; height: 26px; display:flex; align-items:center; justify-content:center;"><i class="fa fa-qrcode"></i></a>`;
@@ -223,13 +223,10 @@ $(document).ready(function() {
                             checkBtn = `<a href="/packing/create?order_id=${row.order_id}" class="btn btn-icon btn-success btn-sm mr-2" title="Check ISP Packing" data-toggle="tooltip" style="width: 26px; height: 26px; display:flex; align-items:center; justify-content:center;"><i class="fa fa-box-open"></i></a>`;
                         }
                         
-                        return `<div class="d-flex justify-content-end">${scanBtn}${checkBtn}<button type="button" class="btn btn-icon btn-danger btn-sm btn_delete" data-id="${row.order_id}" title="Hapus" data-toggle="tooltip" style="width: 26px; height: 26px; display:flex; align-items:center; justify-content:center;"><i class="fas fa-trash"></i></button></div>`;
+                        return `<div class="d-flex justify-content-end">${detailBtn}${scanBtn}${checkBtn}<button type="button" class="btn btn-icon btn-danger btn-sm btn_delete" data-id="${row.order_id}" title="Hapus" data-toggle="tooltip" style="width: 26px; height: 26px; display:flex; align-items:center; justify-content:center;"><i class="fas fa-trash"></i></button></div>`;
                     }
                 },
-            ],
-            createdRow: function(row, data) {
-                if (data.is_group_start) $(row).addClass('order-group-start');
-            }
+            ]
         });
 
         $('[data-toggle="sidebar"]').on('click', function() {
@@ -268,48 +265,46 @@ $(document).ready(function() {
         let currentOrder = null;
         
         display.forEach(item => {
-            if (item.is_group_start) {
-                currentOrder = item;
-                
-                let statusBadge = '';
-                if (item.status === 'planning') statusBadge = '<span class="badge badge-secondary">Planning</span>';
-                else if (item.status === 'partial') statusBadge = '<span class="badge badge-warning">Partial</span>';
-                else if (item.status === 'pulling') statusBadge = '<span class="badge badge-info">Pulling</span>';
-                else if (item.status === 'packing') statusBadge = '<span class="badge badge-primary">Packing</span>';
-                else if (item.status === 'finish') statusBadge = '<span class="badge badge-success">Finish</span>';
+            let statusBadge = '';
+            if (item.status === 'planning') statusBadge = '<span class="badge badge-secondary">Planning</span>';
+            else if (item.status === 'partial') statusBadge = '<span class="badge badge-warning">Partial</span>';
+            else if (item.status === 'pulling') statusBadge = '<span class="badge badge-info">Pulling</span>';
+            else if (item.status === 'delay') statusBadge = '<span class="badge badge-danger">Delay</span>';
+            else if (item.status === 'completed') statusBadge = '<span class="badge badge-success">Completed</span>';
 
-                const isAdminScanner = '{{ auth()->user()->role->name }}' === 'admin scanner';
-                let actions = '';
-                
-                if (isAdminScanner) {
-                    // Admin Scanner: hanya button scan/pulling
-                    if (item.status === 'planning' || item.status === 'partial') {
-                        actions = `<a href="/pulling/create?order_id=${item.order_id}" class="btn btn-info btn-sm btn-block"><i class="fa fa-qrcode"></i> Pulling</a>`;
-                    }
-                } else {
-                    // Role lain: tampilkan semua button
-                    if (item.status === 'planning' || item.status === 'partial') {
-                        actions += `<a href="/pulling/create?order_id=${item.order_id}" class="btn btn-info btn-sm mr-1"><i class="fa fa-qrcode"></i></a>`;
-                    }
-                    if (item.status === 'partial' || item.status === 'pulling') {
-                        actions += `<a href="/packing/create?order_id=${item.order_id}" class="btn btn-success btn-sm mr-1"><i class="fa fa-box-open"></i></a>`;
-                    }
-                    actions += `<button class="btn btn-danger btn-sm btn_delete" data-id="${item.order_id}"><i class="fa fa-trash"></i></button>`;
+            const isAdminScanner = '{{ auth()->user()->role->name }}' === 'admin scanner';
+            let actions = '';
+            
+            if (isAdminScanner) {
+                // Admin Scanner: hanya button scan/pulling
+                if (item.status === 'planning' || item.status === 'partial') {
+                    actions = `<a href="/pulling/create?order_id=${item.order_id}" class="btn btn-info btn-sm btn-block"><i class="fa fa-qrcode"></i> Pulling</a>`;
                 }
-
-                container.append(`
-                    <div class="mobile-card mb-2">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <div class="font-weight-bold" style="font-size:15px;color:#2c3e50;">${item.no_transaksi_display}</div>
-                                <small class="text-muted"><i class="far fa-calendar mr-1"></i>${item.delivery_date_display}</small>
-                            </div>
-                            ${statusBadge}
-                        </div>
-                        ${actions ? '<div class="mobile-actions">' + actions + '</div>' : ''}
-                    </div>
-                `);
+            } else {
+                // Role lain: tampilkan semua button
+                actions += `<button class="btn btn-primary btn-sm mr-1 btn_detail" data-id="${item.order_id}"><i class="fa fa-eye"></i></button>`;
+                if (item.status === 'planning' || item.status === 'partial') {
+                    actions += `<a href="/pulling/create?order_id=${item.order_id}" class="btn btn-info btn-sm mr-1"><i class="fa fa-qrcode"></i></a>`;
+                }
+                if (item.status === 'partial' || item.status === 'pulling') {
+                    actions += `<a href="/packing/create?order_id=${item.order_id}" class="btn btn-success btn-sm mr-1"><i class="fa fa-box-open"></i></a>`;
+                }
+                actions += `<button class="btn btn-danger btn-sm btn_delete" data-id="${item.order_id}"><i class="fa fa-trash"></i></button>`;
             }
+
+            container.append(`
+                <div class="mobile-card mb-2">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <div class="font-weight-bold" style="font-size:15px;color:#2c3e50;">${item.no_transaksi_display}</div>
+                            <small class="text-muted"><i class="far fa-calendar mr-1"></i>${item.delivery_date_display}</small>
+                            <br><small class="text-muted"><i class="fa fa-box mr-1"></i>${item.jumlah_item} item</small>
+                        </div>
+                        ${statusBadge}
+                    </div>
+                    ${actions ? '<div class="mobile-actions">' + actions + '</div>' : ''}
+                </div>
+            `);
         });
 
         $('#load-more').toggle(filteredData.length > displayCount);
@@ -324,10 +319,16 @@ $(document).ready(function() {
         const term = $(this).val().toLowerCase();
         filteredData = term === '' ? mobileData : mobileData.filter(i => 
             i.no_transaksi_display.toLowerCase().includes(term) || 
-            i.part_no.toLowerCase().includes(term)
+            i.status.toLowerCase().includes(term)
         );
         displayCount = 10;
         renderCards();
+    });
+
+    // Detail
+    $(document).on('click', '.btn_detail', function() {
+        const id = $(this).data('id');
+        showOrderDetail(id);
     });
 
     // Delete
@@ -416,12 +417,6 @@ $(document).ready(function() {
     .modal-body { padding: 10px; }
 }
 
-#table_orders tbody tr.order-group-start td {
-    border-top: 3px solid #4e73df !important;
-}
-#table_orders tbody tr:first-child.order-group-start td {
-    border-top-width: 0 !important;
-}
 #table_orders tbody td {
     vertical-align: middle;
 }

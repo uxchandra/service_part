@@ -96,7 +96,7 @@
       
           <div class="sidebar-brand">
             <img src="{{ asset('images/logo.png') }}" alt="Logo STEP" style="height: 35px; width: auto; margin-right: 5px; margin-top: 20px; margin-bottom: 25px">
-            <a href="/" class="text-dark" style="text-transform: none; font-size: 18px;">ServicePart</a>
+            <a href="/" class="text-dark" style="text-transform: none; font-size: 18px;">Service Part</a>
           </div>
       
           <ul class="sidebar-menu">

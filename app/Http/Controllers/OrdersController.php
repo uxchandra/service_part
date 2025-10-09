@@ -25,18 +25,17 @@ class OrdersController extends Controller
     public function getData(Request $request)
     {
         if ($request->ajax()) {
-            // Flatten: satu baris per OrderItem
+            // Query untuk mendapatkan 1 baris per transaksi dengan jumlah item
             $query = Order::query()
-                ->join('order_items', 'orders.id', '=', 'order_items.order_id')
+                ->leftJoin('order_items', 'orders.id', '=', 'order_items.order_id')
                 ->select([
                     'orders.id as order_id',
                     'orders.no_transaksi',
                     'orders.delivery_date',
                     'orders.status',
-                    'order_items.id as item_id',
-                    'order_items.part_no',
-                    'order_items.quantity',
-                ]);
+                    DB::raw('COUNT(order_items.id) as order_items_count')
+                ])
+                ->groupBy('orders.id', 'orders.no_transaksi', 'orders.delivery_date', 'orders.status');
 
             // Pencarian
             if ($request->has('search') && $request->search['value'] != '') {
@@ -44,22 +43,21 @@ class OrdersController extends Controller
                 $query->where(function($q) use ($search) {
                     $q->where('orders.no_transaksi', 'like', "%{$search}%")
                     ->orWhere('orders.status', 'like', "%{$search}%")
-                    ->orWhere('order_items.part_no', 'like', "%{$search}%")
                     ->orWhereDate('orders.delivery_date', $search);
                 });
             }
 
-            $totalRecords = Order::join('order_items', 'orders.id', '=', 'order_items.order_id')->count();
+            $totalRecords = Order::count();
             $totalFiltered = (clone $query)->count();
 
             // Ordering
             if ($request->has('order')) {
-                $columns = ['orders.no_transaksi', 'order_items.part_no', 'order_items.quantity', 'orders.delivery_date', 'orders.status'];
+                $columns = ['orders.no_transaksi', 'orders.delivery_date', 'orders.status'];
                 $orderColumn = $columns[$request->order[0]['column']] ?? 'orders.id';
                 $orderDir = $request->order[0]['dir'] ?? 'desc';
                 $query->orderBy($orderColumn, $orderDir);
             } else {
-                $query->orderBy('orders.id', 'desc')->orderBy('order_items.id', 'asc');
+                $query->orderBy('orders.id', 'desc');
             }
 
             // Pagination
@@ -71,18 +69,14 @@ class OrdersController extends Controller
 
             $rows = $query->get();
 
-            // Tandai baris pertama tiap grup order_id dalam halaman ini
             $data = [];
-            $seenOrderIds = [];
             foreach ($rows as $row) {
-                $isFirst = !in_array($row->order_id, $seenOrderIds, true);
-                if ($isFirst) {
-                    $seenOrderIds[] = $row->order_id;
-                }
-                
+                // Determine effective status (consider delay/completed)
+                $effectiveStatus = $this->getEffectiveStatusForOrderId($row->order_id, $row->status);
+
                 // Format status display dengan badge
                 $statusBadge = '';
-                switch ($row->status) {
+                switch ($effectiveStatus) {
                     case 'planning':
                         $statusBadge = '<span class="badge badge-primary">Planning</span>';
                         break;
@@ -92,30 +86,27 @@ class OrdersController extends Controller
                     case 'pulling':
                         $statusBadge = '<span class="badge badge-info">Pulling</span>';
                         break;
+                    case 'delay':
+                        $statusBadge = '<span class="badge badge-danger">Delay</span>';
+                        break;
                     case 'completed':
                         $statusBadge = '<span class="badge badge-success">Completed</span>';
                         break;
                     default:
-                        $statusBadge = '<span class="badge badge-light">' . ucfirst($row->status) . '</span>';
+                        $statusBadge = '<span class="badge badge-light">' . ucfirst($effectiveStatus) . '</span>';
                 }
                 
-                // Calculate progress untuk baris pertama saja
-                $progressDisplay = '';
-                if ($isFirst) {
-                    $progressDisplay = $this->calculateProgressDisplay($row->order_id, $row->status);
-                }
+                // Calculate progress
+                $progressDisplay = $this->calculateProgressDisplay($row->order_id, $row->status);
                 
                 $data[] = [
                     'order_id' => $row->order_id,
-                    'no_transaksi_display' => $isFirst ? $row->no_transaksi : '',
-                    'part_no' => $row->part_no,
-                    'qty' => (int) $row->quantity,
-                    'delivery_date' => optional($row->delivery_date)->format('d/m/Y'),
-                    'delivery_date_display' => $isFirst ? optional($row->delivery_date)->format('d/m/Y') : '',
-                    'status' => $row->status, // Field status mentah untuk logic di JavaScript
-                    'status_display' => $isFirst ? $statusBadge : '', // Badge HTML untuk tampilan
+                    'no_transaksi_display' => $row->no_transaksi,
+                    'jumlah_item' => $row->order_items_count,
+                    'delivery_date_display' => optional($row->delivery_date)->format('d/m/Y'),
+                    'status' => $effectiveStatus,
+                    'status_display' => $statusBadge,
                     'progress_display' => $progressDisplay,
-                    'is_group_start' => $isFirst,
                     'actions' => '',
                 ];
             }
@@ -134,7 +125,7 @@ class OrdersController extends Controller
      */
     public function import(Request $request)
     {
-        $validator = \Validator::make($request->all(), [
+        $validator = Validator::make($request->all(), [
             'import_file' => 'required|mimes:xlsx,xls|max:5120',
         ], [
             'import_file.required' => 'File wajib diupload',
@@ -211,39 +202,72 @@ class OrdersController extends Controller
                 }
             }
             
-            // Determine progress stages
-            $pullingProgress = $totalQtyOrder > 0 ? round(($totalQtyPulling / $totalQtyOrder) * 100, 1) : 0;
-            $ispProgress = $totalQtyPulling > 0 ? round(($totalQtyIsp / $totalQtyPulling) * 100, 1) : 0;
+            // Format progress as text
+            $progressText = "Pulling: {$totalQtyPulling}/{$totalQtyOrder}<br>";
+            $progressText .= "Packing: {$totalQtyIsp}/{$totalQtyOrder}";
             
-            // Create progress display
-            $progressHtml = '<div class="progress-container" style="min-width: 120px;">';
-            
-            // Pulling progress
-            $pullingColor = $pullingProgress >= 100 ? 'success' : ($pullingProgress > 0 ? 'warning' : 'secondary');
-            $progressHtml .= '<div class="mb-1">';
-            $progressHtml .= '<small class="text-dark">Pulling</small>';
-            $progressHtml .= '<div class="progress" style="height: 6px;">';
-            $progressHtml .= '<div class="progress-bar bg-' . $pullingColor . '" style="width: ' . $pullingProgress . '%"></div>';
-            $progressHtml .= '</div>';
-            $progressHtml .= '<small class="text-dark">' . $pullingProgress . '%</small>';
-            $progressHtml .= '</div>';
-            
-            // ISP progress
-            $ispColor = $ispProgress >= 100 ? 'success' : ($ispProgress > 0 ? 'info' : 'secondary');
-            $progressHtml .= '<div>';
-            $progressHtml .= '<small class="text-dark">ISP</small>';
-            $progressHtml .= '<div class="progress" style="height: 6px;">';
-            $progressHtml .= '<div class="progress-bar bg-' . $ispColor . '" style="width: ' . $ispProgress . '%"></div>';
-            $progressHtml .= '</div>';
-            $progressHtml .= '<small class="text-dark">' . $ispProgress . '%</small>';
-            $progressHtml .= '</div>';
-            
-            $progressHtml .= '</div>';
-            
-            return $progressHtml;
+            return $progressText;
             
         } catch (\Exception $e) {
             return '<span class="text-muted">-</span>';
+        }
+    }
+
+    private function getEffectiveStatusForOrderId(int $orderId, string $currentStatus): string
+    {
+        try {
+            $order = Order::with(['orderItems', 'barangKeluar.ispPacking.items'])
+                ->find($orderId);
+            if (!$order) {
+                return $currentStatus;
+            }
+
+            $totalQtyOrder = (int) $order->orderItems->sum('quantity');
+            $totalQtyPacking = 0;
+            foreach ($order->barangKeluar as $bk) {
+                if ($bk->ispPacking) {
+                    $totalQtyPacking += (int) $bk->ispPacking->items->sum('qty_isp');
+                }
+            }
+
+            // Completed always wins
+            if ($currentStatus === 'completed' || ($totalQtyOrder > 0 && $totalQtyPacking >= $totalQtyOrder)) {
+                return 'completed';
+            }
+
+            // Delay if overdue and not completed
+            if ($order->delivery_date) {
+                $today = now()->startOfDay();
+                $due = \Carbon\Carbon::parse($order->delivery_date)->startOfDay();
+                if ($today->gt($due)) {
+                    return 'delay';
+                }
+            }
+
+            return $currentStatus;
+        } catch (\Exception $e) {
+            return $currentStatus;
+        }
+    }
+
+    public function show($id)
+    {
+        try {
+            $order = Order::with(['orderItems.barang', 'barangKeluar.items.barang', 'barangKeluar.ispPacking.items.barang'])
+                ->findOrFail($id);
+            // Compute effective status for detail modal consistency
+            $effectiveStatus = $this->getEffectiveStatusForOrderId($order->id, $order->status);
+            $order->setAttribute('effective_status', $effectiveStatus);
+            
+            return response()->json([
+                'success' => true,
+                'data' => $order
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil data order: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -301,6 +325,101 @@ class OrdersController extends Controller
         }
     }
 
+    /**
+     * Public Andon view (no auth)
+     */
+    public function andon()
+    {
+        return view('andon');
+    }
+
+    /**
+     * Public Andon data (no auth)
+     */
+    public function andonData(Request $request)
+    {
+        // Fetch latest orders with relations needed to compute per-part totals and stok
+        $orders = Order::query()
+            ->with([
+                'orderItems.barang',
+                'barangKeluar.items.barang',
+                'barangKeluar.ispPacking.items.barang',
+            ])
+            ->orderByDesc('id')
+            ->limit(200)
+            ->get();
+
+        $rows = [];
+        foreach ($orders as $order) {
+            // Build map per part_no from order items
+            $map = [];
+            foreach ($order->orderItems as $oi) {
+                $partNo = $oi->part_no;
+                if (!isset($map[$partNo])) {
+                    $map[$partNo] = [
+                        'no_transaksi' => $order->no_transaksi,
+                        'part_no' => $partNo,
+                        'qty_order' => 0,
+                        'qty_pulling' => 0,
+                        'qty_packing' => 0,
+                        'stok' => optional($oi->barang)->stok ?? 0,
+                        'delivery_date' => optional($order->delivery_date)->format('d/m/Y'),
+                        'status' => $order->status,
+                    ];
+                }
+                $map[$partNo]['qty_order'] += (int) $oi->quantity;
+                // if stok missing on this item but available on barang, set it
+                if (($map[$partNo]['stok'] === 0 || $map[$partNo]['stok'] === null) && $oi->barang) {
+                    $map[$partNo]['stok'] = (int) $oi->barang->stok;
+                }
+            }
+
+            // Sum pulling per part_no
+            foreach ($order->barangKeluar as $bk) {
+                foreach ($bk->items as $it) {
+                    $partNo = optional($it->barang)->part_no;
+                    if ($partNo && isset($map[$partNo])) {
+                        $map[$partNo]['qty_pulling'] += (int) $it->quantity;
+                    }
+                }
+                // Sum packing per part_no
+                if ($bk->ispPacking) {
+                    foreach ($bk->ispPacking->items as $pit) {
+                        $partNo = optional($pit->barang)->part_no;
+                        if ($partNo && isset($map[$partNo])) {
+                            $map[$partNo]['qty_packing'] += (int) $pit->qty_isp;
+                        }
+                    }
+                }
+            }
+
+            // Append rows
+            // Compute effective status once per order
+            $totalQtyOrder = (int) array_sum(array_column($map, 'qty_order'));
+            $totalQtyPacking = 0;
+            foreach ($order->barangKeluar as $bk) {
+                if ($bk->ispPacking) {
+                    $totalQtyPacking += (int) $bk->ispPacking->items->sum('qty_isp');
+                }
+            }
+            $effectiveStatus = $order->status;
+            if ($effectiveStatus !== 'completed' && $totalQtyOrder > 0 && $totalQtyPacking >= $totalQtyOrder) {
+                $effectiveStatus = 'completed';
+            } else if ($order->delivery_date) {
+                $today = now()->startOfDay();
+                $due = \Carbon\Carbon::parse($order->delivery_date)->startOfDay();
+                if ($today->gt($due) && $effectiveStatus !== 'completed') {
+                    $effectiveStatus = 'delay';
+                }
+            }
+
+            foreach ($map as $row) {
+                $row['status'] = $effectiveStatus;
+                $rows[] = $row;
+            }
+        }
+
+        return response()->json(['data' => $rows]);
+    }
+
 }
-
-

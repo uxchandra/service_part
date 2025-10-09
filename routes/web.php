@@ -12,9 +12,11 @@ Route::get('/', function () {
     return view('auth.login');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// Public Andon (no auth)
+Route::get('/andon', [OrdersController::class, 'andon'])->name('andon.view');
+Route::get('/andon-data', [OrdersController::class, 'andonData'])->name('andon.data');
+
+Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/mobile-dashboard', [DashboardController::class, 'mobile'])->name('mobile.dashboard');

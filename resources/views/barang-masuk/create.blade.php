@@ -226,6 +226,8 @@
 <script>
 $(document).ready(function() {
     let itemCounter = 0;
+    let isProcessingScan = false;
+    let lastScanAt = 0;
 
     // Scan QR on Enter
     $('#qr_scan').on('keypress', function(e) {
@@ -242,13 +244,7 @@ $(document).ready(function() {
         }
     });
 
-    // Clear input saat user mulai mengetik
-    $('#qr_scan').on('input', function() {
-        if ($(this).val().length === 1 && $(this).data('last-length') > 1) {
-            $(this).val('');
-        }
-        $(this).data('last-length', $(this).val().length);
-    });
+    // Hapus handler input auto-clear yang dapat mengosongkan input saat scanner mengirim karakter cepat (menghindari false alert)
 
     // Scan QR on Button Click
     $('#btn_scan').on('click', function() {
@@ -257,7 +253,16 @@ $(document).ready(function() {
 
     // Function Scan Barang
     function scanBarang() {
-        let qrLabel = $('#qr_scan').val().trim().toUpperCase();
+        const now = Date.now();
+        if (isProcessingScan || (now - lastScanAt) < 200) {
+            return; // debounce: abaikan event ganda dari scanner
+        }
+        isProcessingScan = true;
+        lastScanAt = now;
+
+        // Normalisasi input dari scanner: hilangkan CR/LF/TAB dan semua spasi
+        let qrLabel = $('#qr_scan').val();
+        qrLabel = (qrLabel || '').replace(/[\r\n\t]+/g, '').replace(/\s+/g, '').trim().toUpperCase();
         
         if (!qrLabel) {
             Swal.fire({
@@ -267,6 +272,8 @@ $(document).ready(function() {
                 timer: 2000,
                 showConfirmButton: false
             });
+            // Lepas lock agar bisa scan berikutnya
+            setTimeout(() => { isProcessingScan = false; }, 100);
             return;
         }
 
@@ -298,7 +305,10 @@ $(document).ready(function() {
             }
         });
 
-        if (foundExisting) return;
+        if (foundExisting) {
+            setTimeout(() => { isProcessingScan = false; }, 50);
+            return;
+        }
 
         // JIKA BELUM ADA, FETCH DARI SERVER
         $.ajax({
@@ -314,6 +324,7 @@ $(document).ready(function() {
                     $('#qr_scan').val('');
                     setTimeout(() => $('#qr_scan').focus(), 50);
                 }
+                setTimeout(() => { isProcessingScan = false; }, 50);
             },
             error: function(xhr) {
                 Swal.fire({
@@ -324,6 +335,7 @@ $(document).ready(function() {
                 });
                 $('#qr_scan').val('');
                 setTimeout(() => $('#qr_scan').focus(), 50);
+                setTimeout(() => { isProcessingScan = false; }, 50);
             }
         });
     }
