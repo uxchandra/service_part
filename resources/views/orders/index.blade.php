@@ -46,6 +46,7 @@
                                     <th class="text-center">Qty</th>
                                     <th>Delivery Date</th>
                                     <th>Status</th>
+                                    <th class="text-center">Progress</th>
                                     <th style="text-align:center">Aksi</th>
                                 </tr>
                             </thead>
@@ -80,13 +81,13 @@
                         <small class="text-muted">Format: .xlsx atau .xls</small>
                     </div>
                     <div class="mt-3">
-                        <a href="{{ route('orders.download-template') }}" class="btn btn-sm btn-secondary">
+                        <a href="{{ route('orders.download-template') }}" class="btn btn-sm btn-success">
                             <i class="fa fa-download"></i> Download Template
                         </a>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-dark" data-dismiss="modal">Batal</button>
                     <button type="submit" class="btn btn-primary">Import</button>
                 </div>
             </form>
@@ -187,6 +188,12 @@ $(document).ready(function() {
                 { data: 'qty', className: 'text-center' },
                 { data: 'delivery_date_display' },
                 { data: 'status_display' },
+                { 
+                    data: 'progress_display', 
+                    className: 'text-center',
+                    orderable: false,
+                    searchable: false
+                },
                 { 
                     data: 'actions', 
                     className: 'text-center',

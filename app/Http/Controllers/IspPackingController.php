@@ -20,9 +20,9 @@ class IspPackingController extends Controller
     public function getData(Request $request)
     {
         if ($request->ajax()) {
-            // Get orders that have completed pulling (status partial or pulling)
+            // Get orders that have completed pulling (status partial, pulling, or completed)
             $query = Order::with(['orderItems', 'barangKeluar.items'])
-                ->whereIn('status', ['partial', 'pulling'])
+                ->whereIn('status', ['partial', 'pulling', 'completed'])
                 ->whereHas('barangKeluar', function($q) {
                     $q->whereNotNull('tanggal_keluar');
                 });
@@ -96,6 +96,65 @@ class IspPackingController extends Controller
                 'recordsFiltered' => $totalRecords,
                 'data' => $data,
             ]);
+        }
+    }
+
+    public function detail($id)
+    {
+        try {
+            // $id adalah order_id
+            $orderId = $id;
+            
+            // Get order with all related data
+            $order = Order::with(['orderItems', 'barangKeluar.items.barang', 'barangKeluar.user'])
+                ->findOrFail($orderId);
+            
+            // Get all ISP packing for this order
+            $allIspPacking = IspPacking::whereHas('barangKeluar', function($q) use ($orderId) {
+                $q->where('order_id', $orderId);
+            })->with(['items.barang', 'barangKeluar', 'user'])->get();
+            
+            // Group ISP packing by barang_keluar_id to show per transaction
+            $packingData = collect();
+            
+            foreach ($order->barangKeluar->whereNotNull('tanggal_keluar') as $barangKeluar) {
+                $ispPacking = $allIspPacking->where('barang_keluar_id', $barangKeluar->id)->first();
+                
+                if ($ispPacking) {
+                    $items = $ispPacking->items->map(function($item) use ($order) {
+                        $orderItem = $order->orderItems->where('part_no', $item->barang->part_no)->first();
+                        return [
+                            'part_no' => $item->barang->part_no ?? '-',
+                            'part_name' => $item->barang->part_name ?? '-',
+                            'qty_order' => $orderItem ? $orderItem->quantity : 0,
+                            'qty_isp' => $item->qty_isp,
+                            'status' => $item->qty_isp >= ($orderItem ? $orderItem->quantity : 0) ? 'completed' : 'partial'
+                        ];
+                    });
+                    
+                    $packingData->push([
+                        'transaction_number' => $barangKeluar->id,
+                        'time' => $ispPacking->tanggal_isp ? $ispPacking->tanggal_isp->format('d F y, H:i') : 'Draft',
+                        'user_name' => $ispPacking->user->name ?? '-',
+                        'items_count' => $ispPacking->items->count(),
+                        'total_qty_isp' => $ispPacking->items->sum('qty_isp'),
+                        'total_qty_order' => $items->sum('qty_order'),
+                        'progress_percentage' => $items->sum('qty_order') > 0 ? round(($items->sum('qty_isp') / $items->sum('qty_order')) * 100, 1) : 0,
+                        'status' => $ispPacking->tanggal_isp ? 'completed' : 'draft',
+                        'items' => $items,
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'packing' => $packingData,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memuat detail: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -260,6 +319,7 @@ class IspPackingController extends Controller
 
             $data = [
                 'keypoint' => $barang->keypoint ?? null,
+                'warna_plastik' => $barang->warna_plastik ?? null,
                 'part_no' => $barang->part_no ?? '-',
                 'part_name' => $barang->part_name ?? '-',
                 'size_plastik' => $barang->size_plastik ?? '-',
@@ -396,17 +456,76 @@ class IspPackingController extends Controller
         try {
             DB::beginTransaction();
 
-            $ispPacking = IspPacking::findOrFail($request->isp_packing_id);
+            $ispPacking = IspPacking::with(['barangKeluar.order.orderItems', 'items.barang'])
+                ->findOrFail($request->isp_packing_id);
             
             // Update tanggal_isp untuk menandakan sudah submit
             $ispPacking->tanggal_isp = now();
             $ispPacking->save();
+
+            // Cek apakah order sudah completed
+            $order = $ispPacking->barangKeluar->order;
+            $orderItems = $order->orderItems;
+            
+            // Ambil semua ISP packing untuk order ini (bisa multiple karena partial order)
+            $allIspPacking = IspPacking::whereHas('barangKeluar', function($q) use ($order) {
+                $q->where('order_id', $order->id);
+            })->with('items.barang')->get();
+            
+            // Gabungkan semua ISP packing items
+            $allIspPackingItems = collect();
+            foreach ($allIspPacking as $isp) {
+                $allIspPackingItems = $allIspPackingItems->merge($isp->items);
+            }
+
+            $isCompleted = true;
+            $completionMessage = '';
+            $debugInfo = [];
+
+            // Pengecekan 1: Apakah semua item order sudah ada di ISP packing?
+            foreach ($orderItems as $orderItem) {
+                // Cari semua ISP items untuk part_no ini dan jumlahkan qty_isp
+                $ispItemsForPart = $allIspPackingItems->where('barang.part_no', $orderItem->part_no);
+                $totalQtyIsp = $ispItemsForPart->sum('qty_isp');
+                
+                $debugInfo[] = [
+                    'part_no' => $orderItem->part_no,
+                    'qty_order' => $orderItem->quantity,
+                    'qty_isp' => $totalQtyIsp,
+                    'isp_items_count' => $ispItemsForPart->count()
+                ];
+                
+                if ($ispItemsForPart->isEmpty()) {
+                    // Item order tidak ditemukan di ISP packing
+                    $isCompleted = false;
+                    $completionMessage = 'Masih ada item order yang belum di-scan di ISP packing';
+                    break;
+                }
+                
+                // Pengecekan 2: Apakah total qty ISP sudah sesuai dengan qty order?
+                if ($totalQtyIsp < $orderItem->quantity) {
+                    $isCompleted = false;
+                    $completionMessage = 'Qty ISP belum sesuai dengan qty order untuk beberapa item';
+                    break;
+                }
+            }
+
+            // Update status order jika completed
+            if ($isCompleted) {
+                $order->status = 'completed';
+                $order->save();
+                $completionMessage = 'Order berhasil diselesaikan (Completed)';
+            }
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => 'ISP Packing berhasil disubmit',
+                'completion_status' => $isCompleted,
+                'completion_message' => $completionMessage,
+                'order_status' => $order->status,
+                'debug_info' => $debugInfo,
             ]);
 
         } catch (\Exception $e) {

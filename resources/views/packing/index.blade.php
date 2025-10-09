@@ -1,5 +1,7 @@
 @extends('layouts.app')
 
+@include('packing.show')
+
 @section('content')
     <div class="section-header">
         <h1>ISP Packing</h1>
@@ -62,7 +64,7 @@ $(document).ready(function(){
                                 ${data}%
                             </div>
                         </div>
-                        <small class="text-muted">${row.total_qty_isp}/${row.total_qty_pulling} qty</small>
+                        <small class="text-dark">${row.total_qty_isp}/${row.total_qty_pulling} qty</small>
                     `;
                     return progressBar;
                 }
@@ -84,11 +86,11 @@ $(document).ready(function(){
                     let buttons = '';
                     
                     // Tombol Packing (selalu ada untuk order yang sudah di-pulling)
-                    buttons += `
-                        <a href="/packing/create?order_id=${row.id}" class="btn btn-sm btn-primary mr-1" title="Mulai/Continue Packing">
-                            <i class="fa fa-box"></i>
-                        </a>
-                    `;
+                    // buttons += `
+                    //     <a href="/packing/create?order_id=${row.id}" class="btn btn-sm btn-primary mr-1" title="Mulai/Continue Packing">
+                    //         <i class="fa fa-box"></i>
+                    //     </a>
+                    // `;
                     
                     // Tombol Detail (opsional)
                     buttons += `
@@ -113,16 +115,102 @@ $(document).ready(function(){
         }
     }
 
-    // Handle detail button click (opsional - bisa diimplementasi nanti)
+    // Handle detail button click
     $(document).on('click', '.btn-detail', function(){
         const id = $(this).data('id');
         const noTransaksi = $(this).data('no-transaksi');
         
-        // Redirect ke order detail atau buka modal
-        Swal.fire({
-            title: 'Detail Order',
-            text: `Detail untuk ${noTransaksi} akan ditampilkan di sini`,
-            icon: 'info'
+        $('#modal_no_transaksi').text(noTransaksi);
+        $('#packing-container').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="sr-only">Loading...</span></div></div>');
+        
+        // Show modal
+        $('#modalDetailPacking').modal('show');
+        
+        // Load packing data
+        $.ajax({
+            url: `/packing/detail/${id}`,
+            type: 'GET',
+            success: function(resp){
+                if (resp.success) {
+                    let packingHtml = '';
+
+                    if (resp.packing.length === 0) {
+                        packingHtml = '<div class="text-center py-4 text-muted"><i class="fa fa-inbox fa-3x mb-3"></i><p>Tidak ada data packing</p></div>';
+                    } else {
+                        resp.packing.forEach((packing, index) => {
+                            packingHtml += `
+                                <div class="packing-item" style="font-size: 12px;">
+                                    <div class="packing-header d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0" style="color: #000;">
+                                            <i class="fas fa-clock mr-2"></i>
+                                            ${packing.time}
+                                        </h6>
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge badge-secondary mr-2">${packing.items_count} item</span>
+                                            <span class="badge badge-info">${packing.total_qty_isp}/${packing.total_qty_order} qty</span>
+                                            <span class="badge badge-${packing.status === 'completed' ? 'success' : 'warning'} ml-2">${packing.status === 'completed' ? 'Completed' : 'Draft'}</span>
+                                        </div>
+                                    </div>
+                                    <div class="packing-body">
+                                        <div class="mb-3 mt-2">
+                                            <small class="text-dark">
+                                                <i class="fas fa-user mr-1"></i>
+                                                Packed by: <strong>${packing.user_name}</strong>
+                                            </small>
+                                        </div>
+                                        <div class="progress-container">
+                                            <div class="progress">
+                                                <div class="progress-bar ${packing.status === 'completed' ? 'bg-success' : 'bg-warning'}" 
+                                                     style="width: ${packing.progress_percentage}%"></div>
+                                            </div>
+                                            <small class="text-muted">Progress: ${packing.progress_percentage}%</small>
+                                        </div>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered items-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="font-size: 14px;">Part No</th>
+                                                        <th style="font-size: 14px;">Part Name</th>
+                                                        <th style="width: 10%; font-size: 12px; text-align: center">Qty Order</th>
+                                                        <th style="width: 10%; font-size: 12px; text-align: center">Qty ISP</th>
+                                                        <th style="width: 10%; font-size: 12px; text-align: center">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                            `;
+
+                            packing.items.forEach((item, itemIndex) => {
+                                packingHtml += `
+                                    <tr>
+                                        <td style="font-size: 14px;">${item.part_no}</td>
+                                        <td style="font-size: 14px;">${item.part_name}</td>
+                                        <td class="text-center" style="font-size: 14px;"><strong>${item.qty_order}</strong></td>
+                                        <td class="text-center" style="font-size: 14px;"><strong>${item.qty_isp}</strong></td>
+                                        <td class="text-center" style="font-size: 14px;">
+                                            <span class="badge badge-${item.status === 'completed' ? 'success' : 'warning'}">${item.status === 'completed' ? 'Close' : 'Open'}</span>
+                                        </td>
+                                    </tr>
+                                `;
+                            });
+
+                            packingHtml += `
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                    
+                    $('#packing-container').html(packingHtml);
+                } else {
+                    $('#packing-container').html('<div class="text-center py-4 text-danger"><i class="fas fa-exclamation-circle mr-2"></i>Gagal memuat data packing</div>');
+                }
+            },
+            error: function(){
+                $('#packing-container').html('<div class="text-center py-4 text-danger"><i class="fas fa-exclamation-circle mr-2"></i>Terjadi kesalahan</div>');
+            }
         });
     });
 

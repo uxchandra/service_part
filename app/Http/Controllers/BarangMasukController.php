@@ -112,6 +112,10 @@ class BarangMasukController extends Controller
                                 'part_name' => $item->barang->part_name ?? '-',
                                 'customer' => $item->barang->customer ?? '-',
                                 'quantity' => $item->quantity,
+                                'keypoint' => $item->barang->keypoint,
+                                'keypoint_url' => $item->barang->keypoint ? asset('images/' . $item->barang->keypoint) : null,
+                                'warna_plastik' => $item->barang->warna_plastik,
+                                'warna_plastik_url' => $item->barang->warna_plastik ? asset('images/' . $item->barang->warna_plastik) : null,
                             ];
                         })
                     ];

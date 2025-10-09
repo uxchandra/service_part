@@ -21,7 +21,8 @@ class BarangTemplateExport implements FromArray, WithHeadings, WithStyles, WithC
                 'Part Name Example',
                 '100x50',
                 'Blue',
-                'keypoint/AR.ADL.0001.jpeg' // Contoh path keypoint
+                'keypoint/AR.ADL.0001.jpeg', // Contoh path keypoint
+                'warna_plastik/300x200.JPG' // Contoh path warna_plastik
             ],
             [
                 'QR002',
@@ -30,7 +31,8 @@ class BarangTemplateExport implements FromArray, WithHeadings, WithStyles, WithC
                 'Part Name Example 2',
                 '200x100',
                 'Red',
-                'keypoint/AR.ADL.0002.jpeg'
+                'keypoint/AR.ADL.0002.jpeg',
+                'warna_plastik/400x300.JPG'
             ]
         ];
     }
@@ -44,7 +46,8 @@ class BarangTemplateExport implements FromArray, WithHeadings, WithStyles, WithC
             'part_name',
             'size_plastic',
             'part_color',
-            'keypoint' // Tambahkan header keypoint
+            'keypoint', // Tambahkan header keypoint
+            'warna_plastik' // Tambahkan header warna_plastik
         ];
     }
 
@@ -79,6 +82,7 @@ class BarangTemplateExport implements FromArray, WithHeadings, WithStyles, WithC
             'E' => 15, // size_plastic
             'F' => 15, // part_color
             'G' => 30, // keypoint (lebih lebar untuk path)
+            'H' => 30, // warna_plastik (lebih lebar untuk path)
         ];
     }
 }

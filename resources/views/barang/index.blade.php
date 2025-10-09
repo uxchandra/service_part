@@ -32,6 +32,7 @@
                                     <th>Size Plastic</th>
                                     <th>Part Color</th>
                                     <th style="text-align: center">Keypoint</th>
+                                    <th style="text-align: center">Warna Plastik</th>
                                     <th style="text-align: center">Stok</th>
                                     <th>Opsi</th>
                                 </tr>
@@ -138,6 +139,24 @@ $(document).ready(function() {
                 }
             },
             { 
+                data: 'warna_plastik_url',
+                orderable: false,
+                searchable: false,
+                className: 'text-center',
+                render: function(data, type, row) {
+                    if (data) {
+                         return `<img src="${data}" 
+                                      alt="Warna Plastik" 
+                                      class="preview-warna-plastik" 
+                                      style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:2px solid #e3e6f0;"
+                                      data-src="${data}"
+                                      onerror="this.onerror=null; this.src=''; this.parentElement.innerHTML='<div class=\'no-image-box\'>Image Not Found</div>';">`;
+                    } else {
+                        return `<div class="no-image-box">No Image</div>`;
+                    }
+                }
+            },
+            { 
                 data: 'stok', 
                 orderable: true, 
                 searchable: true,
@@ -187,6 +206,32 @@ $(document).ready(function() {
         });
     });
 
+    // Preview Warna Plastik Image on Click
+    $(document).on('click', '.preview-warna-plastik', function() {
+        let imageSrc = $(this).data('src');
+        
+        Swal.fire({
+            title: 'Preview Warna Plastik',
+            imageUrl: imageSrc,
+            imageWidth: 'auto',
+            imageHeight: '400px',
+            imageAlt: 'Warna Plastik Image',
+            showConfirmButton: false,
+            showCloseButton: true,
+            customClass: {
+                popup: 'swal-wide'
+            },
+            didOpen: () => {
+                // Add custom CSS for wider popup
+                const popup = Swal.getPopup();
+                if (popup) {
+                    popup.style.maxWidth = '80vw';
+                    popup.style.width = 'auto';
+                }
+            }
+        });
+    });
+
     // Edit Barang
     $(document).on('click', '.btn_edit', function() {
         let id = $(this).data('id');
@@ -204,14 +249,27 @@ $(document).ready(function() {
                     $('#edit_size_plastic').val(response.data.size_plastic);
                     $('#edit_part_color').val(response.data.part_color);
                     $('#edit_stok').val(response.data.stok || 0);
+                    $('#edit_keypoint').val(response.data.keypoint || '');
+                    $('#edit_warna_plastik').val(response.data.warna_plastik || '');
                     
                     // Preview keypoint jika ada
                     if (response.data.keypoint_url) {
-                        $('#edit_keypoint_preview').attr('src', response.data.keypoint_url).show();
+                        $('#edit_keypoint_img').attr('src', response.data.keypoint_url);
+                        $('#edit_keypoint_preview').show();
                         $('#edit_keypoint_path').text(response.data.keypoint);
                     } else {
                         $('#edit_keypoint_preview').hide();
                         $('#edit_keypoint_path').text('-');
+                    }
+                    
+                    // Preview warna_plastik jika ada
+                    if (response.data.warna_plastik_url) {
+                        $('#edit_warna_plastik_img').attr('src', response.data.warna_plastik_url);
+                        $('#edit_warna_plastik_preview').show();
+                        $('#edit_warna_plastik_path').text(response.data.warna_plastik);
+                    } else {
+                        $('#edit_warna_plastik_preview').hide();
+                        $('#edit_warna_plastik_path').text('-');
                     }
                     
                     $('#modal_edit_barang').modal('show');

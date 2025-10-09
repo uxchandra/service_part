@@ -64,6 +64,7 @@ Route::middleware('auth')->group(function () {
 
     // ISP Packing
     Route::prefix('packing')->group(function () {
+        Route::get('/detail/{id}', [\App\Http\Controllers\IspPackingController::class, 'detail'])->name('packing.detail');
         Route::get('/', [\App\Http\Controllers\IspPackingController::class, 'index'])->name('packing.index');
         Route::get('/get-data', [\App\Http\Controllers\IspPackingController::class, 'getData'])->name('packing.get-data');
         Route::get('/create', [\App\Http\Controllers\IspPackingController::class, 'create'])->name('packing.create');

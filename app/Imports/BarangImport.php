@@ -32,6 +32,16 @@ class BarangImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnEr
         // Simpan apa adanya (tanpa memaksa file harus sudah ada), trim spasi ekstra
         $keypoint = is_string($keypointRaw) ? trim($keypointRaw) : null;
 
+        // Ambil nilai warna_plastik dari berbagai kemungkinan header dan normalisasi
+        $warnaPlastikRaw = $row['warna_plastik']
+            ?? $row['warna plastik']
+            ?? $row['warna_plastic']
+            ?? $row['warna plastic']
+            ?? null;
+
+        // Simpan apa adanya (tanpa memaksa file harus sudah ada), trim spasi ekstra
+        $warnaPlastik = is_string($warnaPlastikRaw) ? trim($warnaPlastikRaw) : null;
+
         return new Barang([
             'qr_label'      => $row['qr_label'] ?? $row['qr label'] ?? null,
             'part_no'       => $row['part_no'] ?? $row['part no'] ?? null,
@@ -40,6 +50,7 @@ class BarangImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnEr
             'size_plastic'  => $row['size_plastic'] ?? $row['size plastic'] ?? null,
             'part_color'    => $row['part_color'] ?? $row['part color'] ?? null,
             'keypoint'      => $keypoint, // Simpan path relatif (contoh: keypoint/678-987.jpg)
+            'warna_plastik' => $warnaPlastik, // Simpan path relatif (contoh: keypoint/300x200.JPG)
         ]);
     }
 
@@ -56,6 +67,7 @@ class BarangImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnEr
             'size_plastic' => 'nullable|string|max:255',
             'part_color' => 'nullable|string|max:255',
             'keypoint' => 'nullable|string|max:255', // Tambahkan validasi keypoint
+            'warna_plastik' => 'nullable|string|max:255', // Tambahkan validasi warna_plastik
         ];
     }
 

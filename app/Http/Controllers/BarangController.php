@@ -34,7 +34,8 @@ class BarangController extends Controller
                     ->orWhere('part_name', 'like', "%{$search}%")
                     ->orWhere('size_plastic', 'like', "%{$search}%")
                     ->orWhere('part_color', 'like', "%{$search}%")
-                    ->orWhere('stok', 'like', "%{$search}%");
+                    ->orWhere('stok', 'like', "%{$search}%")
+                    ->orWhere('warna_plastik', 'like', "%{$search}%");
                 });
             }
 
@@ -44,7 +45,7 @@ class BarangController extends Controller
 
             // Ordering
             if ($request->has('order')) {
-                $columns = ['id', 'qr_label', 'part_no', 'customer', 'part_name', 'size_plastic', 'part_color', 'stok'];
+                $columns = ['id', 'qr_label', 'part_no', 'customer', 'part_name', 'size_plastic', 'part_color', 'stok', 'warna_plastik'];
                 $orderColumn = $columns[$request->order[0]['column']] ?? 'id';
                 $orderDir = $request->order[0]['dir'] ?? 'desc';
                 $query->orderBy($orderColumn, $orderDir);
@@ -73,6 +74,8 @@ class BarangController extends Controller
                     'stok' => $row->stok ?? '-',
                     'keypoint' => $row->keypoint, // Tambahkan ini
                     'keypoint_url' => $row->keypoint ? asset('images/' . $row->keypoint) : null, // Full URL gambar
+                    'warna_plastik' => $row->warna_plastik, // Tambahkan ini
+                    'warna_plastik_url' => $row->warna_plastik ? asset('images/' . $row->warna_plastik) : null, // Full URL gambar
                 ];
             });
 
@@ -99,6 +102,7 @@ class BarangController extends Controller
             'part_color' => 'nullable|string|max:255',
             'stok' => 'nullable|integer|min:0',
             'keypoint' => 'nullable|string|max:255', // Tambahkan validasi keypoint
+            'warna_plastik' => 'nullable|string|max:255', // Tambahkan validasi warna_plastik
         ], [
             'qr_label.required' => 'QR Label wajib diisi',
             'qr_label.unique' => 'QR Label sudah digunakan',
@@ -128,6 +132,17 @@ class BarangController extends Controller
                     ], 422);
                 }
             }
+            
+            // Validasi file warna_plastik exists jika ada
+            if (!empty($data['warna_plastik'])) {
+                $warnaPlastikPath = public_path('images/' . $data['warna_plastik']);
+                if (!file_exists($warnaPlastikPath)) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'File warna_plastik tidak ditemukan: ' . $data['warna_plastik']
+                    ], 422);
+                }
+            }
 
             $barang = Barang::create($data);
 
@@ -154,6 +169,8 @@ class BarangController extends Controller
             
             // Tambahkan URL keypoint
             $barang->keypoint_url = $barang->keypoint ? asset('images/' . $barang->keypoint) : null;
+            // Tambahkan URL warna_plastik
+            $barang->warna_plastik_url = $barang->warna_plastik ? asset('images/' . $barang->warna_plastik) : null;
             
             return response()->json([
                 'status' => 'success',
@@ -181,6 +198,7 @@ class BarangController extends Controller
             'part_color' => 'nullable|string|max:255',
             'stok' => 'nullable|integer|min:0',
             'keypoint' => 'nullable|string|max:255', // Tambahkan validasi keypoint
+            'warna_plastik' => 'nullable|string|max:255', // Tambahkan validasi warna_plastik
         ], [
             'qr_label.required' => 'QR Label wajib diisi',
             'qr_label.unique' => 'QR Label sudah digunakan',
@@ -209,6 +227,17 @@ class BarangController extends Controller
                     return response()->json([
                         'status' => 'error',
                         'message' => 'File keypoint tidak ditemukan: ' . $data['keypoint']
+                    ], 422);
+                }
+            }
+            
+            // Validasi file warna_plastik exists jika ada dan berubah
+            if (!empty($data['warna_plastik']) && $data['warna_plastik'] !== $barang->warna_plastik) {
+                $warnaPlastikPath = public_path('images/' . $data['warna_plastik']);
+                if (!file_exists($warnaPlastikPath)) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'File warna_plastik tidak ditemukan: ' . $data['warna_plastik']
                     ], 422);
                 }
             }

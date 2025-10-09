@@ -14,9 +14,10 @@
                     <thead>
                         <tr>
                             <th>No Transaksi</th>
-                            <th>Tanggal</th>
-                            <th class="text-center">Jumlah Transaksi</th>
-                            <!-- <th>User</th> -->
+                            <th>Delivery Date</th>
+                            <th class="text-center">Transaksi Pulling</th>
+                            <th class="text-center">Progress Pulling</th>
+                            <th class="text-center">Terakhir Update</th>
                             <th class="text-center">Aksi</th>
                         </tr>
                     </thead>
@@ -39,18 +40,72 @@ $(document).ready(function(){
         ajax: { url: '{{ route("pulling.get-data") }}', type: 'GET' },
         columns: [
             { data: 'no_transaksi' },
-            { data: 'tanggal_keluar' },
-            { data: 'items_count', className: 'text-center' },
-            // { data: 'user_name' },
-            { data: 'id', className: 'text-center', orderable: false, searchable: false, render: function(data, type, row){
-                return `
-                    <button class="btn btn-sm btn-info btn-detail" data-id="${row.id}" data-no-transaksi="${row.no_transaksi}">
-                        <i class="fa fa-eye"></i> Detail
-                    </button>
-                `;
-            }},
+            { data: 'delivery_date' },
+            { 
+                data: 'transactions_count', 
+                className: 'text-center',
+                render: function(data, type, row) {
+                    return `<span class="badge badge-info">${data} transaksi</span>`;
+                }
+            },
+            { 
+                data: 'progress_percentage', 
+                className: 'text-center',
+                render: function(data, type, row) {
+                    const progressBar = `
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar ${getProgressBarClass(row.pulling_status)}" 
+                                 role="progressbar" 
+                                 style="width: ${data}%" 
+                                 aria-valuenow="${data}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                                ${data}%
+                            </div>
+                        </div>
+                        <small class="text-dark">${row.total_qty_pulling}/${row.total_qty_order} qty</small>
+                    `;
+                    return progressBar;
+                }
+            },
+            { data: 'updated_at' },
+            { 
+                data: 'id', 
+                className: 'text-center', 
+                orderable: false, 
+                searchable: false, 
+                render: function(data, type, row) {
+                    let buttons = '';
+                    
+                    // Tombol Pulling (selalu ada untuk order yang planning)
+                    // buttons += `
+                    //     <a href="/pulling/create?order_id=${row.id}" class="btn btn-sm btn-primary mr-1" title="Mulai/Continue Pulling">
+                    //         <i class="fa fa-hand-paper"></i>
+                    //     </a>
+                    // `;
+                    
+                    // Tombol Detail
+                    buttons += `
+                        <button class="btn btn-sm btn-info btn-detail" data-id="${row.id}" data-no-transaksi="${row.no_transaksi}" title="Detail Order">
+                            <i class="fa fa-eye"></i>
+                        </button>
+                    `;
+                    
+                    return buttons;
+                }
+            },
         ]
     });
+
+    // Helper function untuk progress bar class
+    function getProgressBarClass(pullingStatus) {
+        switch(pullingStatus) {
+            case 'completed': return 'bg-success';
+            case 'in_progress': return 'bg-warning';
+            case 'partial': return 'bg-info';
+            default: return 'bg-secondary';
+        }
+    }
 
     // Handle detail button click
     $(document).on('click', '.btn-detail', function(){
@@ -100,7 +155,7 @@ $(document).ready(function(){
                                                     <tr>
                                                         <th style="font-size: 14px;">Part No</th>
                                                         <th style="font-size: 14px;">Part Name</th>
-                                                        <th style="width: 10%; font-size: 12px; text-align: center">Qty</th>
+                                                        <th style="width: 10%; font-size: 14px; text-align: center">Qty</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>

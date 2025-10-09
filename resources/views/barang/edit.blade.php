@@ -72,6 +72,36 @@
                                 <small class="form-text text-muted">Kosongkan jika tidak ada stok</small>
                             </div>
                         </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_keypoint">Keypoint</label>
+                                <input type="text" class="form-control" id="edit_keypoint" name="keypoint" placeholder="Contoh: keypoint/AR.ADL.0001.jpeg">
+                                <div class="invalid-feedback d-none" id="error_edit_keypoint"></div>
+                                <small class="form-text text-muted">Path relatif ke file gambar (contoh: keypoint/AR.ADL.0001.jpeg)</small>
+                                <div class="mt-2" id="edit_keypoint_preview" style="display: none;">
+                                    <img id="edit_keypoint_img" src="" alt="Keypoint Preview" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; border: 2px solid #e3e6f0;">
+                                    <div class="mt-1">
+                                        <small class="text-muted">Current: <span id="edit_keypoint_path">-</span></small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="edit_warna_plastik">Warna Plastik</label>
+                                <input type="text" class="form-control" id="edit_warna_plastik" name="warna_plastik" placeholder="Contoh: keypoint/300x200.JPG">
+                                <div class="invalid-feedback d-none" id="error_edit_warna_plastik"></div>
+                                <small class="form-text text-muted">Path relatif ke file gambar (contoh: keypoint/300x200.JPG)</small>
+                                <div class="mt-2" id="edit_warna_plastik_preview" style="display: none;">
+                                    <img id="edit_warna_plastik_img" src="" alt="Warna Plastik Preview" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; border: 2px solid #e3e6f0;">
+                                    <div class="mt-1">
+                                        <small class="text-muted">Current: <span id="edit_warna_plastik_path">-</span></small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="alert alert-info mt-2">

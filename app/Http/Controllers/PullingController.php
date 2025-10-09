@@ -19,12 +19,12 @@ class PullingController extends Controller
     public function getData(Request $request)
     {
         if ($request->ajax()) {
-            // Group by order_id to show only one transaction per order
-            $query = BarangKeluar::with(['order', 'user'])
-                ->whereNotNull('tanggal_keluar') // Only show completed pulling
-                ->select('order_id', DB::raw('MAX(id) as id'), DB::raw('MAX(tanggal_keluar) as tanggal_keluar'), DB::raw('MAX(user_id) as user_id'))
-                ->groupBy('order_id')
-                ->orderBy('tanggal_keluar', 'desc');
+            // Get orders that have pulling data
+            $query = Order::with(['orderItems', 'barangKeluar.items'])
+                ->whereIn('status', ['planning', 'partial', 'pulling', 'completed'])
+                ->whereHas('barangKeluar', function($q) {
+                    $q->whereNotNull('tanggal_keluar');
+                });
 
             $totalRecords = $query->count();
 
@@ -34,16 +34,38 @@ class PullingController extends Controller
                 $query->offset($start)->limit($length);
             }
 
-            $data = $query->get()->map(function ($bk) {
-                // Get the actual BarangKeluar record to access relationships
-                $actualBk = BarangKeluar::with(['order', 'user', 'items'])->find($bk->id);
+            $data = $query->orderBy('updated_at', 'desc')->get()->map(function ($order) {
+                // Calculate total qty order
+                $totalQtyOrder = $order->orderItems->sum('quantity');
                 
+                // Calculate total qty pulling
+                $totalQtyPulling = $order->barangKeluar->sum(function($bk) {
+                    return $bk->items->sum('quantity');
+                });
+
+                // Calculate progress percentage
+                $progressPercentage = $totalQtyOrder > 0 ? round(($totalQtyPulling / $totalQtyOrder) * 100, 1) : 0;
+
+                // Determine pulling status
+                $pullingStatus = 'not_started';
+                if ($totalQtyPulling > 0) {
+                    if ($progressPercentage >= 100) {
+                        $pullingStatus = 'completed';
+                    } else {
+                        $pullingStatus = 'partial';
+                    }
+                }
+
                 return [
-                    'id' => $bk->id,
-                    'no_transaksi' => $actualBk->order->no_transaksi ?? '-',
-                    'tanggal_keluar' => optional($actualBk->tanggal_keluar)->translatedFormat('d F Y, H:i'),
-                    'items_count' => $actualBk->items->count(),
-                    'user_name' => $actualBk->user->name ?? '-',
+                    'id' => $order->id,
+                    'no_transaksi' => $order->no_transaksi,
+                    'delivery_date' => optional($order->delivery_date)->format('d/m/Y'),
+                    'transactions_count' => $order->barangKeluar->count(),
+                    'progress_percentage' => $progressPercentage,
+                    'pulling_status' => $pullingStatus,
+                    'total_qty_pulling' => $totalQtyPulling,
+                    'total_qty_order' => $totalQtyOrder,
+                    'updated_at' => $order->updated_at->format('d/m/Y H:i'),
                 ];
             });
 
@@ -59,9 +81,8 @@ class PullingController extends Controller
     public function detail($id)
     {
         try {
-            // Get the order_id from the barang_keluar record
-            $barangKeluar = BarangKeluar::findOrFail($id);
-            $orderId = $barangKeluar->order_id;
+            // $id sekarang adalah order_id, bukan barang_keluar_id
+            $orderId = $id;
             
             // Get all completed transactions for this order (sorted by latest first)
             $transactions = BarangKeluar::with(['items.barang', 'user'])

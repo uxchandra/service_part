@@ -32,6 +32,11 @@ class BarangKeluar extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function ispPacking()
+    {
+        return $this->hasOne(IspPacking::class);
+    }
 }
 
 

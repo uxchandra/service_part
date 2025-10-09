@@ -30,6 +30,7 @@ class Barang extends Model
         'part_color',
         'stok',
         'keypoint',
+        'warna_plastik',
     ];
 
     /**

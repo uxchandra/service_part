@@ -322,6 +322,30 @@
     .mobile-card-wrapper {
         animation: slideIn 0.3s ease;
     }
+
+    .no-image-box-small {
+        width: 40px;
+        height: 40px;
+        background: #f8f9fc;
+        border: 2px dashed #d1d3e2;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #858796;
+        font-size: 8px;
+        text-align: center;
+    }
+
+    .preview-keypoint, .preview-warna-plastik {
+        transition: all 0.3s ease;
+    }
+
+    .preview-keypoint:hover, .preview-warna-plastik:hover {
+        border-color: #4e73df !important;
+        transform: scale(1.05);
+        box-shadow: 0 2px 8px rgba(78, 115, 223, 0.3);
+    }
 </style>
 @endpush
 
@@ -553,6 +577,8 @@ $(document).ready(function() {
                                                     <th style="font-size: 14px;">Part No</th>
                                                     <th style="font-size: 14px;">Part Name</th>
                                                     <th style="font-size: 14px;">Customer</th>
+                                                    <th style="width: 8%; font-size: 12px; text-align: center">Keypoint</th>
+                                                    <th style="width: 8%; font-size: 12px; text-align: center">Warna Plastik</th>
                                                     <th style="width: 10%; font-size: 12px; text-align: center">Qty</th>
                                                 </tr>
                                             </thead>
@@ -560,11 +586,39 @@ $(document).ready(function() {
                         `;
 
                         transaction.items.forEach((item) => {
+                            // Generate keypoint image HTML
+                            let keypointHtml = '';
+                            if (item.keypoint_url) {
+                                keypointHtml = `<img src="${item.keypoint_url}" 
+                                    alt="Keypoint" 
+                                    class="preview-keypoint" 
+                                    style="width:40px;height:40px;object-fit:cover;border-radius:4px;border:2px solid #e3e6f0;cursor:pointer;"
+                                    data-src="${item.keypoint_url}"
+                                    onerror="this.onerror=null; this.src=''; this.parentElement.innerHTML='<div class=\'no-image-box-small\'>No Image</div>';" />`;
+                            } else {
+                                keypointHtml = `<div class="no-image-box-small">No Image</div>`;
+                            }
+
+                            // Generate warna_plastik image HTML
+                            let warnaPlastikHtml = '';
+                            if (item.warna_plastik_url) {
+                                warnaPlastikHtml = `<img src="${item.warna_plastik_url}" 
+                                    alt="Warna Plastik" 
+                                    class="preview-warna-plastik" 
+                                    style="width:40px;height:40px;object-fit:cover;border-radius:4px;border:2px solid #e3e6f0;cursor:pointer;"
+                                    data-src="${item.warna_plastik_url}"
+                                    onerror="this.onerror=null; this.src=''; this.parentElement.innerHTML='<div class=\'no-image-box-small\'>No Image</div>';" />`;
+                            } else {
+                                warnaPlastikHtml = `<div class="no-image-box-small">No Image</div>`;
+                            }
+
                             transactionsHtml += `
                                 <tr>
                                     <td style="font-size: 14px;">${item.part_no}</td>
                                     <td style="font-size: 14px;">${item.part_name}</td>
                                     <td style="font-size: 14px;">${item.customer}</td>
+                                    <td class="text-center">${keypointHtml}</td>
+                                    <td class="text-center">${warnaPlastikHtml}</td>
                                     <td class="text-center" style="font-size: 14px;"><strong>${item.quantity}</strong></td>
                                 </tr>
                             `;
@@ -588,6 +642,58 @@ $(document).ready(function() {
             }
         });
     }
+
+    // Preview Keypoint Image on Click
+    $(document).on('click', '.preview-keypoint', function() {
+        let imageSrc = $(this).data('src');
+        
+        Swal.fire({
+            title: 'Preview Keypoint',
+            imageUrl: imageSrc,
+            imageWidth: 'auto',
+            imageHeight: '400px',
+            imageAlt: 'Keypoint Image',
+            showConfirmButton: false,
+            showCloseButton: true,
+            customClass: {
+                popup: 'swal-wide'
+            },
+            didOpen: () => {
+                // Add custom CSS for wider popup
+                const popup = Swal.getPopup();
+                if (popup) {
+                    popup.style.maxWidth = '80vw';
+                    popup.style.width = 'auto';
+                }
+            }
+        });
+    });
+
+    // Preview Warna Plastik Image on Click
+    $(document).on('click', '.preview-warna-plastik', function() {
+        let imageSrc = $(this).data('src');
+        
+        Swal.fire({
+            title: 'Preview Warna Plastik',
+            imageUrl: imageSrc,
+            imageWidth: 'auto',
+            imageHeight: '400px',
+            imageAlt: 'Warna Plastik Image',
+            showConfirmButton: false,
+            showCloseButton: true,
+            customClass: {
+                popup: 'swal-wide'
+            },
+            didOpen: () => {
+                // Add custom CSS for wider popup
+                const popup = Swal.getPopup();
+                if (popup) {
+                    popup.style.maxWidth = '80vw';
+                    popup.style.width = 'auto';
+                }
+            }
+        });
+    });
 });
 </script>
 @endpush

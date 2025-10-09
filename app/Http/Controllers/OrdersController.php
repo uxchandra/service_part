@@ -90,10 +90,19 @@ class OrdersController extends Controller
                         $statusBadge = '<span class="badge badge-warning">Partial</span>';
                         break;
                     case 'pulling':
-                        $statusBadge = '<span class="badge badge-success">Pulling</span>';
+                        $statusBadge = '<span class="badge badge-info">Pulling</span>';
+                        break;
+                    case 'completed':
+                        $statusBadge = '<span class="badge badge-success">Completed</span>';
                         break;
                     default:
                         $statusBadge = '<span class="badge badge-light">' . ucfirst($row->status) . '</span>';
+                }
+                
+                // Calculate progress untuk baris pertama saja
+                $progressDisplay = '';
+                if ($isFirst) {
+                    $progressDisplay = $this->calculateProgressDisplay($row->order_id, $row->status);
                 }
                 
                 $data[] = [
@@ -105,6 +114,7 @@ class OrdersController extends Controller
                     'delivery_date_display' => $isFirst ? optional($row->delivery_date)->format('d/m/Y') : '',
                     'status' => $row->status, // Field status mentah untuk logic di JavaScript
                     'status_display' => $isFirst ? $statusBadge : '', // Badge HTML untuk tampilan
+                    'progress_display' => $progressDisplay,
                     'is_group_start' => $isFirst,
                     'actions' => '',
                 ];
@@ -174,6 +184,68 @@ class OrdersController extends Controller
         }
     }
 
+    private function calculateProgressDisplay($orderId, $status)
+    {
+        try {
+            // Get order with all related data
+            $order = Order::with(['orderItems', 'barangKeluar.items', 'barangKeluar.ispPacking.items'])
+                ->find($orderId);
+            
+            if (!$order) {
+                return '<span class="text-muted">-</span>';
+            }
+            
+            // Calculate total qty order
+            $totalQtyOrder = $order->orderItems->sum('quantity');
+            
+            // Calculate total qty pulling
+            $totalQtyPulling = $order->barangKeluar->sum(function($bk) {
+                return $bk->items->sum('quantity');
+            });
+            
+            // Calculate total qty ISP
+            $totalQtyIsp = 0;
+            foreach ($order->barangKeluar as $bk) {
+                if ($bk->ispPacking) {
+                    $totalQtyIsp += $bk->ispPacking->items->sum('qty_isp');
+                }
+            }
+            
+            // Determine progress stages
+            $pullingProgress = $totalQtyOrder > 0 ? round(($totalQtyPulling / $totalQtyOrder) * 100, 1) : 0;
+            $ispProgress = $totalQtyPulling > 0 ? round(($totalQtyIsp / $totalQtyPulling) * 100, 1) : 0;
+            
+            // Create progress display
+            $progressHtml = '<div class="progress-container" style="min-width: 120px;">';
+            
+            // Pulling progress
+            $pullingColor = $pullingProgress >= 100 ? 'success' : ($pullingProgress > 0 ? 'warning' : 'secondary');
+            $progressHtml .= '<div class="mb-1">';
+            $progressHtml .= '<small class="text-dark">Pulling</small>';
+            $progressHtml .= '<div class="progress" style="height: 6px;">';
+            $progressHtml .= '<div class="progress-bar bg-' . $pullingColor . '" style="width: ' . $pullingProgress . '%"></div>';
+            $progressHtml .= '</div>';
+            $progressHtml .= '<small class="text-dark">' . $pullingProgress . '%</small>';
+            $progressHtml .= '</div>';
+            
+            // ISP progress
+            $ispColor = $ispProgress >= 100 ? 'success' : ($ispProgress > 0 ? 'info' : 'secondary');
+            $progressHtml .= '<div>';
+            $progressHtml .= '<small class="text-dark">ISP</small>';
+            $progressHtml .= '<div class="progress" style="height: 6px;">';
+            $progressHtml .= '<div class="progress-bar bg-' . $ispColor . '" style="width: ' . $ispProgress . '%"></div>';
+            $progressHtml .= '</div>';
+            $progressHtml .= '<small class="text-dark">' . $ispProgress . '%</small>';
+            $progressHtml .= '</div>';
+            
+            $progressHtml .= '</div>';
+            
+            return $progressHtml;
+            
+        } catch (\Exception $e) {
+            return '<span class="text-muted">-</span>';
+        }
+    }
 
     public function destroy($id)
     {

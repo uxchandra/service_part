@@ -70,6 +70,24 @@
                                 <small class="form-text text-muted">Kosongkan jika tidak ada stok</small>
                             </div>
                         </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="keypoint">Keypoint</label>
+                                <input type="text" class="form-control" id="keypoint" name="keypoint" placeholder="Contoh: keypoint/AR.ADL.0001.jpeg">
+                                <div class="invalid-feedback d-none" id="error_keypoint"></div>
+                                <small class="form-text text-muted">Path relatif ke file gambar (contoh: keypoint/AR.ADL.0001.jpeg)</small>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="warna_plastik">Warna Plastik</label>
+                                <input type="text" class="form-control" id="warna_plastik" name="warna_plastik" placeholder="Contoh: keypoint/300x200.JPG">
+                                <div class="invalid-feedback d-none" id="error_warna_plastik"></div>
+                                <small class="form-text text-muted">Path relatif ke file gambar (contoh: keypoint/300x200.JPG)</small>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="alert alert-info mt-2">

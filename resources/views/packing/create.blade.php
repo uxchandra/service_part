@@ -2,7 +2,10 @@
 
 @include('packing.detail')
 
+
+
 @section('content')
+
     <div class="section-header">
         <h1>ISP Packing - {{ $order->no_transaksi }}</h1>
         <div class="ml-auto">
@@ -134,16 +137,45 @@ $(document).ready(function(){
                     // Update keypoint image
                     if (data.keypoint) {
                         $('#keypoint-container').html(`
-                            <img src="/images/${data.keypoint}" 
-                                 class="img-fluid rounded" 
-                                 style="max-height: 500px; width: 100%; object-fit: contain;"
-                                 alt="Keypoint">
+                            <h6 class="text-muted mb-1" style="font-size: 0.7rem; flex-shrink: 0;"><i class="fa fa-eye mr-1"></i>Keypoint</h6>
+                            <div style="flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden;">
+                                <img src="/images/${data.keypoint}" 
+                                    class="img-fluid rounded shadow-sm" 
+                                    style="max-height: 100%; max-width: 100%; object-fit: contain;"
+                                    alt="Keypoint">
+                            </div>
                         `);
                     } else {
                         $('#keypoint-container').html(`
-                            <div class="text-center py-4 text-muted">
-                                <i class="fa fa-image fa-3x mb-3"></i>
-                                <p>No keypoint image</p>
+                            <h6 class="text-muted mb-1" style="font-size: 0.7rem; flex-shrink: 0;"><i class="fa fa-eye mr-1"></i>Keypoint</h6>
+                            <div style="flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0;" class="text-center text-muted border rounded">
+                                <div>
+                                    <i class="fa fa-image mb-1" style="font-size: 1.5rem;"></i>
+                                    <p class="mb-0" style="font-size: 0.7rem;">No keypoint image</p>
+                                </div>
+                            </div>
+                        `);
+                    }
+
+                    // Update warna plastik image
+                    if (data.warna_plastik) {
+                        $('#warna_plastik-container').html(`
+                            <h6 class="text-muted mb-1" style="font-size: 0.7rem; flex-shrink: 0;"><i class="fa fa-palette mr-1"></i>Warna Plastik</h6>
+                            <div style="flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden;">
+                                <img src="/images/${data.warna_plastik}" 
+                                    class="img-fluid rounded shadow-sm" 
+                                    style="max-height: 100%; max-width: 100%; object-fit: contain;"
+                                    alt="Warna Plastik">
+                            </div>
+                        `);
+                    } else {
+                        $('#warna_plastik-container').html(`
+                            <h6 class="text-muted mb-1" style="font-size: 0.7rem; flex-shrink: 0;"><i class="fa fa-palette mr-1"></i>Warna Plastik</h6>
+                            <div style="flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0;" class="text-center text-muted border rounded">
+                                <div>
+                                    <i class="fa fa-image mb-1" style="font-size: 1.5rem;"></i>
+                                    <p class="mb-0" style="font-size: 0.7rem;">No warna plastik image</p>
+                                </div>
                             </div>
                         `);
                     }
@@ -299,10 +331,27 @@ $(document).ready(function(){
                     },
                     success: function(resp){
                         if (resp.success) {
+                            // Tampilkan informasi completion status
+                            let alertTitle = 'Berhasil!';
+                            let alertIcon = 'success';
+                            let alertText = resp.message;
+                            
+                            if (resp.completion_status) {
+                                alertTitle = 'Order Completed!';
+                                alertIcon = 'success';
+                                alertText = resp.completion_message;
+                            } else {
+                                alertTitle = 'ISP Packing Submitted';
+                                alertIcon = 'success';
+                                alertText = resp.message;
+                            }
+                            
                             Swal.fire({
-                                title: 'Berhasil!',
-                                text: resp.message,
-                                icon: 'success'
+                                title: alertTitle,
+                                text: alertText,
+                                icon: alertIcon,
+                                showConfirmButton: false,
+                                timer: 1500
                             }).then(() => {
                                 location.reload();
                             });
