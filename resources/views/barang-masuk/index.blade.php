@@ -5,9 +5,16 @@
     <div class="section-header">
         <h1>Data Posting</h1>
         <div class="ml-auto">
-            <a href="{{ route('barang-masuk.create') }}" class="btn btn-primary btn-sm">
-                <i class="fa fa-plus"></i> Tambah
+        @if(auth()->user()->role->name === 'admin scanner')
+            <a href="{{ route('mobile.dashboard') }}" class="btn btn-dark btn-sm">
+                <i class="fa fa-arrow-left"></i> Kembali
             </a>
+        @endif
+
+        <a href="{{ route('barang-masuk.create') }}" class="btn btn-primary btn-sm">
+            <i class="fa fa-plus"></i> Tambah
+        </a>
+
         </div>
     </div>
 

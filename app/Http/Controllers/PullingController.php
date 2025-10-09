@@ -325,6 +325,19 @@ class PullingController extends Controller
                 $barang->save();
             }
 
+            // Hapus draft lama setelah semua items dipindahkan
+            $existingDraft = BarangKeluar::where('order_id', $order->id)
+                ->whereNull('tanggal_keluar')
+                ->where('id', '!=', $barangKeluar->id) // Jangan hapus yang baru dibuat
+                ->first();
+            
+            if ($existingDraft) {
+                // Hapus items dulu
+                $existingDraft->items()->delete();
+                // Hapus barang keluar
+                $existingDraft->delete();
+            }
+
             // PERUBAHAN: Update status order berdasarkan fulfillment
             if ($isFullyFulfilled) {
                 $order->status = 'pulling'; // Semua item lengkap

@@ -29,7 +29,9 @@
                             <th>Part Name</th>
                             <th class="text-center">Qty Order</th>
                             <th class="text-center">Qty Pulling</th>
-                            <th class="text-center">Scan</th>
+                            <th class="text-center">Qty ISP</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -45,10 +47,20 @@
                             <td>{{ $transactionItem['barang']->part_name }}</td>
                             <td class="text-center">{{ $qtyOrder }}</td>
                             <td class="text-center">{{ $qtyPulling }}</td>
+                            <td class="text-center">{{ $qtyIsp }}</td>
+                            @php
+                                // Status berdasarkan qty ISP vs qty Order (bukan vs pulling)
+                                $isCompleted = $qtyIsp >= $qtyOrder;
+                                $status = $isCompleted ? 'Close' : 'Open';
+                                $statusClass = $isCompleted ? 'success' : 'warning';
+                            @endphp
+                            <td class="text-center">
+                                <span class="badge badge-{{ $statusClass }}">{{ $status }}</span>
+                            </td>
                             <td class="text-center">
                                 @if($ispPackingItem)
                                     @if($qtyIsp >= $qtyPulling)
-                                        <span class="badge badge-success">Close</span>
+                                        <span class="text-muted">-</span>
                                     @else
                                         <button type="button" class="btn btn-sm btn-primary btn-detail" 
                                                 data-isp-packing-item-id="{{ $ispPackingItem->id }}"
@@ -170,14 +182,24 @@ $(document).ready(function(){
         const row = button.closest('tr');
         const transactionIndex = button.data('transaction-index');
         
-        // Get qty pulling from the row
+        // Get qty order & pulling from the row
+        const qtyOrder = parseInt(row.find('td:eq(2)').text());
         const qtyPulling = parseInt(row.find('td:eq(3)').text());
-        
-        // Update scan column
+
+        // Update Qty ISP column (index 4)
+        row.find('td:eq(4)').text(qtyIsp);
+
+        // Update Status column (index 5) berdasarkan qty ISP vs qty Order
+        const isCompleted = qtyIsp >= qtyOrder;
+        const status = isCompleted ? 'Close' : 'Open';
+        const statusClass = isCompleted ? 'success' : 'warning';
+        row.find('td:eq(5)').html(`<span class="badge badge-${statusClass}">${status}</span>`);
+
+        // Update Aksi column (index 6)
         if (qtyIsp >= qtyPulling) {
-            row.find('td:eq(4)').html('<span class="badge badge-success">Close</span>');
+            row.find('td:eq(6)').html('<span class="text-muted">-</span>');
         } else {
-            row.find('td:eq(4)').html(`
+            row.find('td:eq(6)').html(`
                 <button type="button" class="btn btn-sm btn-primary btn-detail" 
                         data-isp-packing-item-id="${ispPackingItemId}"
                         data-transaction-index="${transactionIndex}">

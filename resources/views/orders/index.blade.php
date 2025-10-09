@@ -4,12 +4,18 @@
     <div class="section-header">
         <h1>Orders</h1>
         <div class="ml-auto">
-            <a href="javascript:void(0)" class="btn btn-success btn-sm mr-2" id="btn_import">
-                <i class="fa fa-file-excel"></i> <span class="d-none d-md-inline">Import</span>
-            </a>
-            <a href="{{ route('orders.create') }}" class="btn btn-primary btn-sm">
-                <i class="fa fa-plus"></i> <span class="d-none d-md-inline">Tambah</span>
-            </a>
+            @if(auth()->user()->role->name === 'admin scanner')
+                <a href="{{ route('mobile.dashboard') }}" class="btn btn-dark btn-sm">
+                    <i class="fa fa-arrow-left"></i> Kembali
+                </a>
+            @else
+                <a href="javascript:void(0)" class="btn btn-success btn-sm mr-2" id="btn_import">
+                    <i class="fa fa-file-excel"></i> <span class="d-none d-md-inline">Import</span>
+                </a>
+                <a href="{{ route('orders.create') }}" class="btn btn-primary btn-sm">
+                    <i class="fa fa-plus"></i> <span class="d-none d-md-inline">Tambah</span>
+                </a>
+            @endif
         </div>
     </div>
 
@@ -189,6 +195,17 @@ $(document).ready(function() {
                     render: function(_, __, row) {
                         if (!row.is_group_start) return '';
                         
+                        const isAdminScanner = '{{ auth()->user()->role->name }}' === 'admin scanner';
+                        
+                        if (isAdminScanner) {
+                            // Admin Scanner: hanya button scan/pulling
+                            if (row.status === 'planning' || row.status === 'partial') {
+                                return `<div class="d-flex justify-content-end"><a href="/pulling/create?order_id=${row.order_id}" class="btn btn-icon btn-info btn-sm" title="Pulling" data-toggle="tooltip" style="width: 26px; height: 26px; display:flex; align-items:center; justify-content:center;"><i class="fa fa-qrcode"></i></a></div>`;
+                            }
+                            return '';
+                        }
+                        
+                        // Role lain: tampilkan semua button
                         let scanBtn = '';
                         if (row.status === 'planning' || row.status === 'partial') {
                             scanBtn = `<a href="/pulling/create?order_id=${row.order_id}" class="btn btn-icon btn-info btn-sm mr-2" title="Pulling" data-toggle="tooltip" style="width: 26px; height: 26px; display:flex; align-items:center; justify-content:center;"><i class="fa fa-qrcode"></i></a>`;
@@ -254,14 +271,24 @@ $(document).ready(function() {
                 else if (item.status === 'packing') statusBadge = '<span class="badge badge-primary">Packing</span>';
                 else if (item.status === 'finish') statusBadge = '<span class="badge badge-success">Finish</span>';
 
+                const isAdminScanner = '{{ auth()->user()->role->name }}' === 'admin scanner';
                 let actions = '';
-                if (item.status === 'planning' || item.status === 'partial') {
-                    actions += `<a href="/pulling/create?order_id=${item.order_id}" class="btn btn-info btn-sm mr-1"><i class="fa fa-qrcode"></i></a>`;
+                
+                if (isAdminScanner) {
+                    // Admin Scanner: hanya button scan/pulling
+                    if (item.status === 'planning' || item.status === 'partial') {
+                        actions = `<a href="/pulling/create?order_id=${item.order_id}" class="btn btn-info btn-sm btn-block"><i class="fa fa-qrcode"></i> Pulling</a>`;
+                    }
+                } else {
+                    // Role lain: tampilkan semua button
+                    if (item.status === 'planning' || item.status === 'partial') {
+                        actions += `<a href="/pulling/create?order_id=${item.order_id}" class="btn btn-info btn-sm mr-1"><i class="fa fa-qrcode"></i></a>`;
+                    }
+                    if (item.status === 'partial' || item.status === 'pulling') {
+                        actions += `<a href="/packing/create?order_id=${item.order_id}" class="btn btn-success btn-sm mr-1"><i class="fa fa-box-open"></i></a>`;
+                    }
+                    actions += `<button class="btn btn-danger btn-sm btn_delete" data-id="${item.order_id}"><i class="fa fa-trash"></i></button>`;
                 }
-                if (item.status === 'partial' || item.status === 'pulling') {
-                    actions += `<a href="/packing/create?order_id=${item.order_id}" class="btn btn-success btn-sm mr-1"><i class="fa fa-box-open"></i></a>`;
-                }
-                actions += `<button class="btn btn-danger btn-sm btn_delete" data-id="${item.order_id}"><i class="fa fa-trash"></i></button>`;
 
                 container.append(`
                     <div class="mobile-card mb-2">
@@ -272,22 +299,7 @@ $(document).ready(function() {
                             </div>
                             ${statusBadge}
                         </div>
-                        <div class="mobile-items mb-2">
-                            <div class="mobile-item">
-                                <small class="text-muted">Part No:</small>
-                                <div style="font-size:13px;">${item.part_no}</div>
-                                <small class="text-muted">Qty: <strong>${item.qty}</strong></small>
-                            </div>
-                        </div>
-                        <div class="mobile-actions">${actions}</div>
-                    </div>
-                `);
-            } else if (currentOrder) {
-                container.find('.mobile-card:last .mobile-items').append(`
-                    <div class="mobile-item mt-2 pt-2" style="border-top:1px solid #eee;">
-                        <small class="text-muted">Part No:</small>
-                        <div style="font-size:13px;">${item.part_no}</div>
-                        <small class="text-muted">Qty: <strong>${item.qty}</strong></small>
+                        ${actions ? '<div class="mobile-actions">' + actions + '</div>' : ''}
                     </div>
                 `);
             }
@@ -370,8 +382,13 @@ $(document).ready(function() {
     
     .mobile-actions .btn {
         flex: 1;
-        padding: 6px;
-        font-size: 13px;
+        padding: 8px;
+        font-size: 14px;
+    }
+    
+    .btn-block {
+        width: 100%;
+        display: block;
     }
     
     .loading-skeleton {

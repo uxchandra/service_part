@@ -117,8 +117,9 @@ class IspPackingController extends Controller
 
         // Group items by barang keluar transaction (tidak ditotalkan)
         // Urutkan dari yang terbaru (latest first)
+        // Filter hanya yang sudah completed (tanggal_keluar tidak null)
         $transactionsData = collect();
-        foreach ($order->barangKeluar->sortByDesc('created_at') as $barangKeluar) {
+        foreach ($order->barangKeluar->whereNotNull('tanggal_keluar')->sortByDesc('created_at') as $barangKeluar) {
             $transactionItems = collect();
             foreach ($barangKeluar->items as $bkItem) {
                 $transactionItems->push([
@@ -263,6 +264,7 @@ class IspPackingController extends Controller
                 'part_name' => $barang->part_name ?? '-',
                 'size_plastik' => $barang->size_plastik ?? '-',
                 'part_color' => $barang->part_color ?? '-',
+                'qr_label' => $barang->qr_label ?? null,
                 'qty_order' => $orderItem ? $orderItem->quantity : 0,
                 'qty_pulling' => $totalQtyPulling,
                 'qty_isp' => $ispPackingItem->qty_isp,
@@ -301,8 +303,41 @@ class IspPackingController extends Controller
             $scanValue = trim($request->scan_value);
             $barang = $ispPackingItem->barang;
             
-            if ($barang->qr_label !== $scanValue && $barang->part_no !== $scanValue) {
-                throw new \Exception('QR/Part No tidak sesuai dengan item ini');
+            // Cek apakah scan value sesuai dengan qr_label atau part_no (lebih toleran)
+            // Normalisasi: uppercase dan hilangkan spasi, dash, underscore
+            $normalize = function ($value) {
+                $value = (string) $value;
+                $value = strtoupper($value);
+                // Hilangkan spasi/whitespace, dash, underscore
+                $value = preg_replace('/[\s\-_]+/', '', $value);
+                return $value;
+            };
+
+            // Beberapa scanner bisa mengirim format seperti KEY:VALUE atau payload panjang
+            // Kita ambil nilai terakhir setelah tanda ':' bila ada, agar lebih toleran
+            $rawScan = $scanValue;
+            if (strpos($rawScan, ':') !== false) {
+                $parts = explode(':', $rawScan);
+                $rawScan = end($parts);
+            }
+
+            $normalizedScan = $normalize($rawScan);
+            $normalizedQr = $normalize($barang->qr_label ?? '');
+            $normalizedPart = $normalize($barang->part_no ?? '');
+
+            $isValidScan = false;
+            if ($normalizedScan !== '') {
+                // Cocok sama persis atau payload mengandung QR label (untuk kasus payload gabungan)
+                if ($normalizedQr !== '' && ($normalizedScan === $normalizedQr || strpos($normalizedScan, $normalizedQr) !== false)) {
+                    $isValidScan = true;
+                }
+                if (!$isValidScan && $normalizedPart !== '' && $normalizedScan === $normalizedPart) {
+                    $isValidScan = true;
+                }
+            }
+
+            if (!$isValidScan) {
+                throw new \Exception('QR Label atau Part No tidak sesuai dengan item ini');
             }
 
             // Hitung total qty pulling dari semua barang keluar untuk part ini
@@ -323,40 +358,9 @@ class IspPackingController extends Controller
                 throw new \Exception('Item tidak ditemukan di barang keluar');
             }
 
-            // Tentukan batas scan berdasarkan transaksi atau total
+            // Tentukan batas scan berdasarkan total pulling kumulatif untuk barang ini
+            // Catatan: tidak dibatasi per transaksi agar bisa lanjut scan setelah ada pulling baru
             $scanLimit = $totalQtyPulling;
-            
-            if ($request->has('transaction_index')) {
-                // Gunakan urutan yang sama dengan create method (terbaru dulu)
-                $transactionsData = collect();
-                foreach ($order->barangKeluar->sortByDesc('created_at') as $barangKeluar) {
-                    $transactionItems = collect();
-                    foreach ($barangKeluar->items as $bkItem) {
-                        $transactionItems->push([
-                            'barang_id' => $bkItem->barang_id,
-                            'barang' => $bkItem->barang,
-                            'qty_pulling' => $bkItem->quantity,
-                            'qty_order' => $order->orderItems->where('part_no', $bkItem->barang->part_no)->first()->quantity ?? 0,
-                        ]);
-                    }
-                    
-                    $transactionsData->push([
-                        'barang_keluar' => $barangKeluar,
-                        'items' => $transactionItems,
-                        'transaction_number' => $barangKeluar->id,
-                        'tanggal' => $barangKeluar->tanggal_keluar
-                    ]);
-                }
-                
-                $transactionIndex = $request->transaction_index;
-                if (isset($transactionsData[$transactionIndex])) {
-                    $transaction = $transactionsData[$transactionIndex];
-                    $transactionItem = $transaction['items']->where('barang_id', $barang->id)->first();
-                    if ($transactionItem) {
-                        $scanLimit = $transactionItem['qty_pulling'];
-                    }
-                }
-            }
 
             // Cek apakah masih bisa scan berdasarkan batas yang ditentukan
             if ($ispPackingItem->qty_isp >= $scanLimit) {

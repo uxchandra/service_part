@@ -4,17 +4,24 @@
     <div class="section-header">
         <h1>Pulling - {{ $order->no_transaksi }}</h1>
         <div class="ml-auto">
-            <a href="/orders" class="btn btn-secondary">Kembali</a>
+            <a href="/orders" class="btn btn-secondary btn-sm">
+                <i class="fa fa-arrow-left"></i> <span class="d-none d-md-inline">Kembali</span>
+            </a>
         </div>
     </div>
 
     <div class="row">
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header"><h4>Item Order</h4></div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered">
+        <!-- Desktop: 2 kolom | Mobile: 1 kolom full -->
+        <div class="col-lg-6 col-12">
+            <!-- Item Order Card -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h4 class="mb-0">Item Order</h4>
+                </div>
+                <div class="card-body p-2">
+                    <!-- Desktop Table -->
+                    <div class="table-responsive d-none d-md-block">
+                        <table class="table table-sm table-bordered mb-0">
                             <thead>
                                 <tr>
                                     <th>Part No</th>
@@ -49,35 +56,73 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- Mobile Cards -->
+                    <div class="d-block d-md-none" id="mobile-order-items">
+                        @foreach($order->orderItems as $it)
+                        @php
+                            $alreadyScanned = $previousScanned[$it->part_no] ?? 0;
+                            $remaining = $it->quantity - $alreadyScanned;
+                        @endphp
+                        <div class="order-item-card">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div class="flex-grow-1">
+                                    <div class="font-weight-bold text-dark" style="font-size: 14px;">{{ $it->part_no }}</div>
+                                </div>
+                                <span class="badge badge-primary ml-2">Qty: {{ $it->quantity }}</span>
+                            </div>
+                            @if($order->status === 'partial')
+                            <div class="d-flex gap-2" style="font-size: 13px;">
+                                <div class="flex-fill">
+                                    <small class="text-muted d-block">Pulling</small>
+                                    <span class="badge badge-info">{{ $alreadyScanned }}</span>
+                                </div>
+                                <div class="flex-fill">
+                                    <small class="text-muted d-block">Sisa</small>
+                                    <span class="badge {{ $remaining > 0 ? 'badge-warning' : 'badge-success' }}">{{ $remaining }}</span>
+                                </div>
+                            </div>
+                            @endif
+                        </div>
+                        @endforeach
+                    </div>
                 </div>
             </div>
 
-            <div class="card">
-                <div class="card-header"><h4>Scan Items</h4></div>
+            <!-- Scan Form Card -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h4 class="mb-0">Scan Items</h4>
+                </div>
                 <div class="card-body">
                     <form id="form_scan">
                         @csrf
                         <input type="hidden" name="order_id" id="order_id" value="{{ $order->id }}">
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             <label>QR / Part No</label>
                             <input type="text" id="scan_code" class="form-control" placeholder="Scan atau ketik kode..." autofocus>
                         </div>
-                        <button type="submit" class="btn btn-primary"><i class="fa fa-qrcode"></i> Scan</button>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <i class="fa fa-qrcode"></i> Scan
+                        </button>
                     </form>
                 </div>
             </div>
         </div>
-        <div class="col-lg-6">
+
+        <!-- Daftar Scan -->
+        <div class="col-lg-6 col-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h4>Daftar Scan</h4>
-                    <button type="button" class="btn btn-success" id="btn_submit" disabled>
+                    <h4 class="mb-0">Daftar Scan</h4>
+                    <button type="button" class="btn btn-success btn-sm" id="btn_submit" disabled>
                         <i class="fa fa-check"></i> Submit
                     </button>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered" id="table_scanned">
+                <div class="card-body p-2">
+                    <!-- Desktop Table -->
+                    <div class="table-responsive d-none d-md-block">
+                        <table class="table table-sm table-bordered mb-0" id="table_scanned">
                             <thead>
                                 <tr>
                                     <th>Part No</th>
@@ -87,10 +132,17 @@
                                     <th class="text-center">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody id="scanned_items_tbody">
-                                {{-- Kosong karena setiap kali masuk halaman ini akan reset --}}
-                            </tbody>
+                            <tbody id="scanned_items_tbody"></tbody>
                         </table>
+                    </div>
+
+                    <!-- Mobile Scanned Cards -->
+                    <div class="d-block d-md-none" id="mobile-scanned-items">
+                        <div id="mobile-scanned-container"></div>
+                        <div id="empty-scanned" class="text-center text-muted py-4">
+                            <i class="fa fa-inbox fa-2x mb-2"></i>
+                            <p>Belum ada item yang discan</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -98,17 +150,94 @@
     </div>
 @endsection
 
+@push('styles')
+<style>
+@media (max-width: 767px) {
+    body { font-size: 14px; }
+    .section-header { padding: 10px 0; margin-bottom: 10px; }
+    .section-header h1 { font-size: 16px; margin-bottom: 0; }
+    .card { margin-bottom: 10px !important; }
+    .card-header h4 { font-size: 15px; }
+    .card-body { padding: 10px !important; }
+    
+    /* Order Item Cards */
+    .order-item-card {
+        background: white;
+        border: 1px solid #e3e6f0;
+        border-radius: 6px;
+        padding: 10px;
+        margin-bottom: 8px;
+    }
+    
+    /* Scanned Item Cards */
+    .scanned-item-card {
+        background: #f8f9fc;
+        border: 1px solid #e3e6f0;
+        border-radius: 6px;
+        padding: 10px;
+        margin-bottom: 8px;
+    }
+    
+    .scanned-item-header {
+        margin-bottom: 8px;
+    }
+    
+    .scanned-item-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding-top: 8px;
+        border-top: 1px solid #e3e6f0;
+    }
+    
+    .scanned-item-actions input {
+        flex: 1;
+        text-align: center;
+        font-weight: bold;
+        font-size: 16px;
+        height: 38px;
+    }
+    
+    .scanned-item-actions .btn-danger {
+        width: 38px;
+        height: 38px;
+        padding: 0;
+        flex-shrink: 0;
+    }
+    
+    .form-control {
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+    
+    .btn-block {
+        font-size: 16px;
+        padding: 10px;
+    }
+}
+
+/* Highlight animation */
+.highlight-success {
+    animation: highlightFade 1s ease-in-out;
+}
+
+@keyframes highlightFade {
+    0% { background-color: #d4edda; }
+    100% { background-color: transparent; }
+}
+</style>
+@endpush
+
 @push('scripts')
 <script>
 $(document).ready(function(){
+    const isMobile = $(window).width() < 768;
+
     // Scan form
     $('#form_scan').on('submit', function(e){
         e.preventDefault();
         const orderId = $('#order_id').val();
         const code = $('#scan_code').val().trim();
-        if (!code) {
-            return;
-        }
+        if (!code) return;
 
         $.ajax({
             url: '{{ route("pulling.scan") }}',
@@ -120,42 +249,15 @@ $(document).ready(function(){
             },
             success: function(resp){
                 if (resp.success) {
-                    // PERBAIKAN: Cek apakah item sudah ada di tabel (update) atau baru (insert)
-                    if (resp.item.is_update) {
-                        // Update qty di row yang sudah ada
-                        const row = $(`tr[data-item-id="${resp.item.id}"]`);
-                        row.find('.qty_input').val(resp.item.quantity);
-                        
-                        // Highlight row sebentar
-                        row.addClass('table-success');
-                        setTimeout(() => row.removeClass('table-success'), 500);
+                    if (isMobile) {
+                        updateMobileScannedItem(resp.item);
                     } else {
-                        // Tambahkan row baru ke tabel scanned
-                        const tbody = $('#scanned_items_tbody');
-                        tbody.append(`
-                            <tr data-item-id="${resp.item.id}">
-                                <td>${resp.item.part_no}</td>
-                                <td>${resp.item.part_name}</td>
-                                <td>${resp.item.stok}</td>
-                                <td class="text-center">
-                                    <input type="number" class="form-control form-control-sm qty_input" 
-                                           value="${resp.item.quantity}" min="1" 
-                                           data-item-id="${resp.item.id}" style="width: 80px;">
-                                </td>
-                                <td class="text-center">
-                                    <button type="button" class="btn btn-sm btn-danger btn_delete_item" 
-                                            data-item-id="${resp.item.id}">
-                                        <i class="fa fa-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        `);
+                        updateDesktopScannedItem(resp.item);
                     }
                     
                     $('#scan_code').val('').focus();
                     checkSubmitButton();
                     
-                    // Notifikasi sukses
                     Swal.fire({
                         toast: true,
                         position: 'top-end',
@@ -174,10 +276,72 @@ $(document).ready(function(){
         });
     });
 
+    // Update Desktop Table
+    function updateDesktopScannedItem(item) {
+        if (item.is_update) {
+            const row = $(`#scanned_items_tbody tr[data-item-id="${item.id}"]`);
+            row.find('.qty_input').val(item.quantity);
+            row.addClass('table-success');
+            setTimeout(() => row.removeClass('table-success'), 500);
+        } else {
+            $('#scanned_items_tbody').append(`
+                <tr data-item-id="${item.id}">
+                    <td>${item.part_no}</td>
+                    <td>${item.part_name}</td>
+                    <td>${item.stok}</td>
+                    <td class="text-center">
+                        <input type="number" class="form-control form-control-sm qty_input" 
+                               value="${item.quantity}" min="1" 
+                               data-item-id="${item.id}" style="width: 80px;">
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-danger btn_delete_item" 
+                                data-item-id="${item.id}">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `);
+        }
+    }
+
+    // Update Mobile Cards
+    function updateMobileScannedItem(item) {
+        $('#empty-scanned').hide();
+        
+        if (item.is_update) {
+            const card = $(`#mobile-scanned-container .scanned-item-card[data-item-id="${item.id}"]`);
+            card.find('.qty_input').val(item.quantity);
+            card.addClass('highlight-success');
+            setTimeout(() => card.removeClass('highlight-success'), 1000);
+        } else {
+            $('#mobile-scanned-container').append(`
+                <div class="scanned-item-card" data-item-id="${item.id}">
+                    <div class="scanned-item-header">
+                        <div class="font-weight-bold text-dark" style="font-size: 14px;">${item.part_no}</div>
+                        <small class="text-muted">${item.part_name}</small>
+                        <div class="mt-1">
+                            <small class="text-muted">Stok: <span class="badge badge-secondary">${item.stok}</span></small>
+                        </div>
+                    </div>
+                    <div class="scanned-item-actions">
+                        <input type="number" class="form-control qty_input" 
+                               value="${item.quantity}" min="1"
+                               data-item-id="${item.id}">
+                        <button type="button" class="btn btn-danger btn_delete_item" 
+                                data-item-id="${item.id}">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `);
+        }
+    }
+
     // Delete item
     $(document).on('click', '.btn_delete_item', function(){
         const itemId = $(this).data('item-id');
-        const row = $(this).closest('tr');
+        const container = $(this).closest(isMobile ? '.scanned-item-card' : 'tr');
         
         Swal.fire({
             title: 'Hapus Item?',
@@ -195,8 +359,13 @@ $(document).ready(function(){
                     data: { _token: $('meta[name="csrf-token"]').attr('content') },
                     success: function(resp){
                         if (resp.success) {
-                            row.remove();
+                            container.remove();
                             checkSubmitButton();
+                            
+                            if (isMobile && $('#mobile-scanned-container .scanned-item-card').length === 0) {
+                                $('#empty-scanned').show();
+                            }
+                            
                             Swal.fire({
                                 toast: true,
                                 position: 'top-end',
@@ -222,13 +391,23 @@ $(document).ready(function(){
         const orderId = $('#order_id').val();
         const items = [];
         
-        $('#scanned_items_tbody tr').each(function(){
-            const itemId = $(this).data('item-id');
-            const qty = $(this).find('.qty_input').val();
-            if (itemId && qty > 0) {
-                items.push({ id: itemId, quantity: parseInt(qty) });
-            }
-        });
+        if (isMobile) {
+            $('#mobile-scanned-container .scanned-item-card').each(function(){
+                const itemId = $(this).data('item-id');
+                const qty = $(this).find('.qty_input').val();
+                if (itemId && qty > 0) {
+                    items.push({ id: itemId, quantity: parseInt(qty) });
+                }
+            });
+        } else {
+            $('#scanned_items_tbody tr').each(function(){
+                const itemId = $(this).data('item-id');
+                const qty = $(this).find('.qty_input').val();
+                if (itemId && qty > 0) {
+                    items.push({ id: itemId, quantity: parseInt(qty) });
+                }
+            });
+        }
 
         if (items.length === 0) {
             Swal.fire('Error', 'Tidak ada item untuk disubmit', 'error');
@@ -274,13 +453,14 @@ $(document).ready(function(){
         });
     });
 
-    // Enable/disable submit button based on items
+    // Enable/disable submit button
     function checkSubmitButton() {
-        const hasItems = $('#scanned_items_tbody tr').length > 0;
+        const hasItems = isMobile 
+            ? $('#mobile-scanned-container .scanned-item-card').length > 0
+            : $('#scanned_items_tbody tr').length > 0;
         $('#btn_submit').prop('disabled', !hasItems);
     }
 
-    // Initial check
     checkSubmitButton();
 });
 </script>
